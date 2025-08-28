@@ -43,7 +43,14 @@ def success(message):
 
 def set_output(name, value):
     """Set GitHub Actions output"""
-    print(f"::set-output name={name}::{value}")
+    # Use the newer method for setting outputs
+    github_output = os.getenv('GITHUB_OUTPUT')
+    if github_output:
+        with open(github_output, 'a') as f:
+            f.write(f"{name}={value}\n")
+    else:
+        # Fallback to older method
+        print(f"::set-output name={name}::{value}")
 
 def check_ollama_server():
     """Check if Ollama server is running"""
@@ -76,10 +83,10 @@ def pull_model():
             success(f"Model {MODEL} pulled successfully")
             return True
         else:
-            error(f"Failed to pull model: {result.stderr}")
+            log(f"Failed to pull model: {result.stderr}")
             return False
     except Exception as e:
-        error(f"Failed to pull model: {str(e)}")
+        log(f"Failed to pull model: {str(e)}")
         return False
 
 def translate_with_ollama(text, retries=0):

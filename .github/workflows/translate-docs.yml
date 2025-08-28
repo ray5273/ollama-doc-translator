@@ -29,19 +29,28 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Ollama Server
+      shell: bash
       run: |
         # Start Ollama server if not running
         if ! pgrep -x "ollama" > /dev/null; then
-          echo "Starting Ollama server..."
+          echo "🚀 Starting Ollama server..."
           ollama serve &
           sleep 10
+        else
+          echo "✅ Ollama server is already running"
         fi
         
-        # Check if model exists, if not pull it
-        if ! ollama list | grep -q "exaone3.5:7.8b"; then
-          echo "Pulling exaone3.5:7.8b model..."
-          ollama pull exaone3.5:7.8b
-        fi
+        # Verify server is accessible
+        echo "🔍 Checking Ollama server accessibility..."
+        for i in {1..5}; do
+          if curl -s http://localhost:11434/api/tags > /dev/null; then
+            echo "✅ Ollama server is accessible"
+            break
+          else
+            echo "⏳ Waiting for Ollama server... (attempt $i/5)"
+            sleep 2
+          fi
+        done
 
     - name: Translate Korean docs to English
       uses: ./  # Use the local action
