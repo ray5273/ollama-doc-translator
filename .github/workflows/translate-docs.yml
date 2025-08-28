@@ -16,6 +16,9 @@ on:
         required: false
         default: false
         type: boolean
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   translate:
@@ -66,6 +69,7 @@ jobs:
         create-pr: true
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
+        base-branch: 'main'
         commit-message: 'docs: Auto-translate Korean documents to English'
         github-token: ${{ secrets.GITHUB_TOKEN }}
       id: translate
