@@ -66,7 +66,7 @@ jobs:
         temperature: 0
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
-        create-pr: false
+        create-pr: true
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
         base-branch: 'main'
