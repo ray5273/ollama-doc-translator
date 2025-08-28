@@ -57,6 +57,16 @@ inputs:
     required: false
     default: ${{ github.token }}
   
+  base-branch:
+    description: 'Base branch for pull request'
+    required: false
+    default: 'main'
+  
+  github-api-url:
+    description: 'GitHub API URL (for GitHub Enterprise)'
+    required: false
+    default: 'https://api.github.com'
+  
   skip-existing:
     description: 'Skip files that already exist and are newer'
     required: false
@@ -141,6 +151,8 @@ runs:
         INPUT_PR_TITLE: ${{ inputs.pr-title }}
         INPUT_PR_BRANCH: ${{ inputs.pr-branch }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_BASE_BRANCH: ${{ inputs.base-branch }}
+        INPUT_GITHUB_API_URL: ${{ inputs.github-api-url }}
         INPUT_SKIP_EXISTING: ${{ inputs.skip-existing }}
         INPUT_TEMPERATURE: ${{ inputs.temperature }}
         INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
