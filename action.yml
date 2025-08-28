@@ -1,0 +1,104 @@
+name: 'Ollama Korean to English Translator'
+description: 'Translate Korean markdown documents to English using local Ollama API with Exaone3.5 model'
+author: 'Your Name'
+
+branding:
+  icon: 'globe'
+  color: 'blue'
+
+inputs:
+  ollama-url:
+    description: 'Ollama API URL'
+    required: false
+    default: 'http://localhost:11434'
+  
+  model:
+    description: 'Ollama model to use for translation'
+    required: false
+    default: 'exaone3.5:7.8b'
+  
+  source-dir:
+    description: 'Source directory containing Korean markdown files'
+    required: false
+    default: 'docs'
+  
+  target-dir:
+    description: 'Target directory for English translations'
+    required: false
+    default: 'docs-en'
+  
+  file-pattern:
+    description: 'File pattern to match (glob)'
+    required: false
+    default: '**/*.md'
+  
+  commit-message:
+    description: 'Commit message for translated files'
+    required: false
+    default: 'docs: Update English translations'
+  
+  create-pr:
+    description: 'Create pull request with translations'
+    required: false
+    default: 'true'
+  
+  pr-title:
+    description: 'Pull request title'
+    required: false
+    default: 'Update English documentation translations'
+  
+  pr-branch:
+    description: 'Branch name for pull request'
+    required: false
+    default: 'translation-update'
+  
+  github-token:
+    description: 'GitHub token for creating PR'
+    required: false
+    default: ${{ github.token }}
+  
+  skip-existing:
+    description: 'Skip files that already exist and are newer'
+    required: false
+    default: 'true'
+  
+  temperature:
+    description: 'Model temperature (0.0-1.0)'
+    required: false
+    default: '0.3'
+  
+  max-retries:
+    description: 'Maximum number of retries for API calls'
+    required: false
+    default: '3'
+
+outputs:
+  translated-files:
+    description: 'Number of files translated'
+  
+  skipped-files:
+    description: 'Number of files skipped'
+  
+  pr-url:
+    description: 'Pull request URL if created'
+  
+  pr-number:
+    description: 'Pull request number if created'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    INPUT_OLLAMA_URL: ${{ inputs.ollama-url }}
+    INPUT_MODEL: ${{ inputs.model }}
+    INPUT_SOURCE_DIR: ${{ inputs.source-dir }}
+    INPUT_TARGET_DIR: ${{ inputs.target-dir }}
+    INPUT_FILE_PATTERN: ${{ inputs.file-pattern }}
+    INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+    INPUT_CREATE_PR: ${{ inputs.create-pr }}
+    INPUT_PR_TITLE: ${{ inputs.pr-title }}
+    INPUT_PR_BRANCH: ${{ inputs.pr-branch }}
+    INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+    INPUT_SKIP_EXISTING: ${{ inputs.skip-existing }}
+    INPUT_TEMPERATURE: ${{ inputs.temperature }}
+    INPUT_MAX_RETRIES: ${{ inputs.max-retries }}

@@ -1,0 +1,76 @@
+name: Advanced Korean to English Translation
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'korean-docs/**/*.md' ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_translate:
+        description: 'Force translate all files (ignore skip-existing)'
+        required: false
+        default: 'false'
+        type: boolean
+      custom_model:
+        description: 'Custom model to use'
+        required: false
+        default: 'exaone3.5:7.8b'
+        type: string
+
+jobs:
+  translate:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Check Ollama server
+      run: |
+        curl -f http://localhost:11434/api/tags || {
+          echo "Ollama server is not running!"
+          exit 1
+        }
+    
+    - name: Translate Korean docs to English
+      uses: your-username/ollama-doc-translator@v1
+      with:
+        ollama-url: 'http://localhost:11434'
+        model: ${{ github.event.inputs.custom_model || 'exaone3.5:7.8b' }}
+        source-dir: 'korean-docs'
+        target-dir: 'english-docs'
+        file-pattern: '**/*.md'
+        temperature: 0.2
+        max-retries: 5
+        skip-existing: ${{ github.event.inputs.force_translate != 'true' }}
+        create-pr: true
+        pr-title: 'docs: Auto-translated Korean documentation to English'
+        pr-branch: 'auto-translation-${{ github.run_number }}'
+        commit-message: 'docs: Update English translations from Korean sources'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+      id: translate
+    
+    - name: Post translation summary
+      if: always()
+      run: |
+        echo "## Translation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Translated files: ${{ steps.translate.outputs.translated-files }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Skipped files: ${{ steps.translate.outputs.skipped-files }}" >> $GITHUB_STEP_SUMMARY
+        if [ -n "${{ steps.translate.outputs.pr-url }}" ]; then
+          echo "- Pull Request: ${{ steps.translate.outputs.pr-url }}" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "Translation job failed. Please check the logs above."
+        echo "Common issues:"
+        echo "1. Ollama server not running"
+        echo "2. Model not available"
+        echo "3. Network connectivity issues"

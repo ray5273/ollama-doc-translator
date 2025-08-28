@@ -1,0 +1,38 @@
+name: Basic Korean to English Translation
+
+on:
+  push:
+    branches: [ main, master ]
+    paths: [ 'docs/**/*.md' ]
+  pull_request:
+    branches: [ main, master ]
+    paths: [ 'docs/**/*.md' ]
+  workflow_dispatch:
+
+jobs:
+  translate:
+    runs-on: self-hosted # Recommended for local Ollama access
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Translate Korean docs to English
+      uses: your-username/ollama-doc-translator@v1
+      with:
+        source-dir: 'docs'
+        target-dir: 'docs-en'
+        model: 'exaone3.5:7.8b'
+        create-pr: true
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+      
+    - name: Check translation results
+      run: |
+        echo "Translation completed!"
+        if [ -d "docs-en" ]; then
+          echo "Translated files:"
+          find docs-en -name "*.md" -type f
+        fi
