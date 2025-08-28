@@ -32,16 +32,16 @@ MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', '3'))
 
 def log(message):
     """Print log message with timestamp"""
-    print(f"🔄 {message}")
+    print(f"🔄 {message}", flush=True)
 
 def error(message):
     """Print error message and exit"""
-    print(f"❌ Error: {message}")
+    print(f"❌ Error: {message}", flush=True)
     sys.exit(1)
 
 def success(message):
     """Print success message"""
-    print(f"✅ {message}")
+    print(f"✅ {message}", flush=True)
 
 def set_output(name, value):
     """Set GitHub Actions output"""
@@ -94,7 +94,7 @@ def pull_model():
 def translate_with_ollama(text, retries=0):
     """Translate text using Ollama API with retry logic"""
     if retries >= MAX_RETRIES:
-        log(f"Max retries ({MAX_RETRIES}) reached, returning original text")
+        print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     
     prompt = f"""다음 한국어 텍스트를 영어로 번역해주세요. 마크다운 형식과 구조를 정확히 유지하세요. 번역된 텍스트만 반환하고 추가 설명은 하지 마세요.
@@ -127,13 +127,13 @@ def translate_with_ollama(text, retries=0):
         
         return translated
     except Exception as e:
-        log(f"Translation error (attempt {retries + 1}): {e}")
+        print(f"⚠️  Translation error (attempt {retries + 1}): {e}", flush=True)
         time.sleep(2 ** retries)  # Exponential backoff
         return translate_with_ollama(text, retries + 1)
 
 def process_markdown_file(input_path, output_path):
     """Process a single markdown file"""
-    log(f"Translating: {input_path} -> {output_path}")
+    print(f"\n📝 Starting translation: {input_path} -> {output_path}", flush=True)
     
     try:
         with open(input_path, 'r', encoding='utf-8') as f:
@@ -143,12 +143,21 @@ def process_markdown_file(input_path, output_path):
         chunks = content.split('\n\n')
         translated_chunks = []
         
+        total_chunks = len([c for c in chunks if c.strip()])
+        processed_chunks = 0
+        
+        print(f"📊 Processing {total_chunks} chunks...", flush=True)
+        
         for i, chunk in enumerate(chunks):
             if chunk.strip():
-                log(f"Processing chunk {i+1}/{len(chunks)}")
+                processed_chunks += 1
+                print(f"🔄 [{processed_chunks}/{total_chunks}] Processing chunk...", end='', flush=True)
+                
                 translated_chunk = translate_with_ollama(chunk)
                 translated_chunks.append(translated_chunk)
-                time.sleep(1)  # Rate limiting
+                
+                print(f" ✅ Done", flush=True)
+                time.sleep(0.5)  # Reduced rate limiting for better UX
             else:
                 translated_chunks.append(chunk)
         
@@ -161,10 +170,10 @@ def process_markdown_file(input_path, output_path):
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(translated_content)
         
-        success(f"Translation completed: {output_path}")
+        print(f"🎉 Translation completed: {output_path}\n", flush=True)
         return True
     except Exception as e:
-        error(f"Failed to process {input_path}: {str(e)}")
+        print(f"❌ Failed to process {input_path}: {str(e)}", flush=True)
         return False
 
 def create_pull_request(translated_files=None):
@@ -386,31 +395,38 @@ def main():
         set_output('skipped-files', '0')
         return
     
-    log(f"Found {len(md_files)} markdown files")
+    print(f"📋 Found {len(md_files)} markdown files to process\n", flush=True)
     
     translated_count = 0
     skipped_count = 0
     translated_files = []  # Keep track of translated files
     
     # Process each file
-    for md_file in md_files:
+    for file_index, md_file in enumerate(md_files, 1):
         rel_path = md_file.relative_to(source_path)
         output_file = target_path / rel_path
+        
+        print(f"📄 [{file_index}/{len(md_files)}] Processing: {md_file}", flush=True)
         
         # Skip if file exists and is newer
         if (SKIP_EXISTING and output_file.exists() and 
             output_file.stat().st_mtime > md_file.stat().st_mtime):
-            log(f"Skipping {md_file} (translation is up to date)")
+            print(f"⏭️  Skipping {md_file} (translation is up to date)\n", flush=True)
             skipped_count += 1
             continue
         
         if process_markdown_file(md_file, output_file):
             translated_count += 1
             translated_files.append(str(output_file))  # Add to translated files list
+            print(f"✅ [{file_index}/{len(md_files)}] Successfully translated: {output_file}", flush=True)
         else:
             skipped_count += 1
+            print(f"❌ [{file_index}/{len(md_files)}] Failed to translate: {md_file}", flush=True)
+        
+        # Show overall progress
+        print(f"📈 Progress: {file_index}/{len(md_files)} files processed, {translated_count} translated, {skipped_count} skipped\n", flush=True)
     
-    success(f"Translation completed: {translated_count} files translated, {skipped_count} files skipped")
+    print(f"🎯 Final Summary: {translated_count} files translated, {skipped_count} files skipped", flush=True)
     
     # Set outputs
     set_output('translated-files', str(translated_count))
