@@ -48,11 +48,19 @@ def set_output(name, value):
     # Use the newer method for setting outputs
     github_output = os.getenv('GITHUB_OUTPUT')
     if github_output:
-        with open(github_output, 'a') as f:
-            f.write(f"{name}={value}\n")
+        with open(github_output, 'a', encoding='utf-8') as f:
+            # Handle multiline values properly
+            if '\n' in str(value):
+                # Use heredoc format for multiline values
+                delimiter = f"EOF_{name}_{int(time.time())}"
+                f.write(f"{name}<<{delimiter}\n{value}\n{delimiter}\n")
+            else:
+                # Simple format for single line values
+                f.write(f"{name}={value}\n")
     else:
-        # Fallback to older method
-        print(f"::set-output name={name}::{value}")
+        # Fallback to older method (escape newlines)
+        escaped_value = str(value).replace('\n', '%0A')
+        print(f"::set-output name={name}::{escaped_value}")
 
 def check_ollama_server():
     """Check if Ollama server is running"""
@@ -432,9 +440,17 @@ def main():
     set_output('translated-files', str(translated_count))
     set_output('skipped-files', str(skipped_count))
     
-    # Output translated files list for artifact upload
+    # Output translated files list for artifact upload (use space-separated for better compatibility)
     if translated_files:
-        set_output('translated-files-list', '\n'.join(translated_files))
+        # Convert to relative paths and join with spaces
+        relative_files = []
+        for file_path in translated_files:
+            try:
+                rel_path = os.path.relpath(file_path)
+                relative_files.append(rel_path)
+            except:
+                relative_files.append(file_path)
+        set_output('translated-files-list', ' '.join(relative_files))
     else:
         set_output('translated-files-list', '')
     
