@@ -75,7 +75,7 @@ jobs:
       id: translate
 
     - name: Upload translated files as artifact
-      if: steps.translate.outputs.translated-files != '0' && inputs.create-pr == false
+      if: steps.translate.outputs.translated-files != '0'
       uses: actions/upload-artifact@v4
       with:
         name: translated-docs-${{ github.run_number }}
