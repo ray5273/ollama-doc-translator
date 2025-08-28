@@ -63,10 +63,10 @@ jobs:
         source-dir: 'docs'
         target-dir: 'docs-en'
         file-pattern: '**/*.md'
-        temperature: 0.3
+        temperature: 0
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
-        create-pr: true
+        create-pr: false
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
         base-branch: 'main'
