@@ -10,10 +10,19 @@ on:
     paths:
       - 'docs/**/*.md'
   workflow_dispatch:
+    inputs:
+      force_translate:
+        description: 'Force translate all files (ignore skip-existing)'
+        required: false
+        default: false
+        type: boolean
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   translate:
-    runs-on: ubuntu-latest
+    runs-on: macOS  # Use self-hosted runner for local Ollama access
     
     steps:
     - name: Checkout repository
@@ -22,163 +31,64 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: Install dependencies
+    - name: Setup Ollama Server
+      shell: bash
       run: |
-        pip install requests python-markdown
-
-    - name: Setup Ollama
-      run: |
-        curl -fsSL https://ollama.com/install.sh | sh
-        ollama serve &
-        sleep 10
-        ollama pull exaone3.5:7.8b
-
-    - name: Create translation script
-      run: |
-        cat > translate.py << 'EOF'
-        import os
-        import json
-        import requests
-        import time
-        from pathlib import Path
-
-        def translate_with_ollama(text, model="exaone3.5:7.8b"):
-            url = "http://localhost:11434/api/generate"
-            
-            prompt = f"""Please translate the following Korean text to English. Maintain the markdown formatting and structure. Only return the translated text without any additional comments or explanations.
-
-        Korean text:
-        {text}
-
-        English translation:"""
-            
-            payload = {
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.3,
-                    "top_p": 0.9
-                }
-            }
-            
-            try:
-                response = requests.post(url, json=payload, timeout=300)
-                response.raise_for_status()
-                result = response.json()
-                return result.get('response', '').strip()
-            except Exception as e:
-                print(f"Translation error: {e}")
-                return text
-
-        def process_markdown_file(input_path, output_path):
-            print(f"Translating: {input_path} -> {output_path}")
-            
-            with open(input_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Split content into chunks to handle large files
-            chunks = content.split('\n\n')
-            translated_chunks = []
-            
-            for i, chunk in enumerate(chunks):
-                if chunk.strip():
-                    print(f"Translating chunk {i+1}/{len(chunks)}")
-                    translated_chunk = translate_with_ollama(chunk)
-                    translated_chunks.append(translated_chunk)
-                    time.sleep(1)  # Rate limiting
-                else:
-                    translated_chunks.append(chunk)
-            
-            translated_content = '\n\n'.join(translated_chunks)
-            
-            # Create output directory
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Write translated content
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(translated_content)
-            
-            print(f"Translation completed: {output_path}")
-
-        def main():
-            docs_dir = Path('docs')
-            docs_en_dir = Path('docs-en')
-            
-            if not docs_dir.exists():
-                print("docs/ directory not found")
-                return
-            
-            # Find all markdown files in docs/
-            md_files = list(docs_dir.rglob('*.md'))
-            
-            if not md_files:
-                print("No markdown files found in docs/")
-                return
-            
-            print(f"Found {len(md_files)} markdown files to translate")
-            
-            for md_file in md_files:
-                # Calculate relative path
-                rel_path = md_file.relative_to(docs_dir)
-                output_file = docs_en_dir / rel_path
-                
-                # Skip if already exists and is newer
-                if output_file.exists() and output_file.stat().st_mtime > md_file.stat().st_mtime:
-                    print(f"Skipping {md_file} (translation is up to date)")
-                    continue
-                
-                process_markdown_file(md_file, output_file)
-
-        if __name__ == "__main__":
-            main()
-        EOF
-
-    - name: Run translation
-      run: python translate.py
-
-    - name: Check for changes
-      id: check_changes
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        if [ -n "$(git status --porcelain docs-en/)" ]; then
-          echo "changes=true" >> $GITHUB_OUTPUT
-          git add docs-en/
+        # Start Ollama server if not running
+        if ! pgrep -x "ollama" > /dev/null; then
+          echo "🚀 Starting Ollama server..."
+          ollama serve &
+          sleep 10
         else
-          echo "changes=false" >> $GITHUB_OUTPUT
+          echo "✅ Ollama server is already running"
         fi
+        
+        # Verify server is accessible
+        echo "🔍 Checking Ollama server accessibility..."
+        for i in {1..5}; do
+          if curl -s http://localhost:11434/api/tags > /dev/null; then
+            echo "✅ Ollama server is accessible"
+            break
+          else
+            echo "⏳ Waiting for Ollama server... (attempt $i/5)"
+            sleep 2
+          fi
+        done
 
-    - name: Create Pull Request
-      if: steps.check_changes.outputs.changes == 'true'
-      uses: peter-evans/create-pull-request@v5
+    - name: Translate Korean docs to English
+      uses: ./  # Use the local action
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "docs: Update English translations"
-        title: "Update English documentation translations"
-        body: |
-          ## 📝 Documentation Translation Update
-          
-          This PR contains automatically generated English translations of Korean documentation files.
-          
-          ### Changes
-          - Translated Korean markdown files from `docs/` to `docs-en/`
-          - Used Exaone3.5:7.8b model for translation
-          
-          ### Files Updated
-          ```
-          $(git diff --name-only HEAD^ HEAD docs-en/ || echo "New translations added")
-          ```
-          
-          Please review the translations for accuracy and merge if they look good.
-          
-          ---
-          🤖 This PR was automatically generated by the translation workflow.
-        branch: translation-update-${{ github.run_number }}
-        delete-branch: true
+        ollama-url: 'http://localhost:11434'
+        model: 'exaone3.5:7.8b'
+        source-dir: 'docs'
+        target-dir: 'docs-en'
+        file-pattern: '**/*.md'
+        temperature: 0.3
+        max-retries: 3
+        skip-existing: ${{ !inputs.force_translate }}
+        create-pr: true
+        pr-title: '📚 Update English documentation translations'
+        pr-branch: 'auto-translate-${{ github.run_number }}'
+        base-branch: 'main'
+        commit-message: 'docs: Auto-translate Korean documents to English'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+      id: translate
+
+    - name: Translation Summary
+      if: always()
+      run: |
+        echo "## 🔄 Translation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Translated files**: ${{ steps.translate.outputs.translated-files }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Skipped files**: ${{ steps.translate.outputs.skipped-files }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -n "${{ steps.translate.outputs.pr-url }}" ]; then
+          echo "- **Pull Request**: [${{ steps.translate.outputs.pr-number }}](${{ steps.translate.outputs.pr-url }})" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Pull Request**: No changes detected, no PR created" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Workflow Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
