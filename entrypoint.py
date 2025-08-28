@@ -416,12 +416,20 @@ def main():
     set_output('translated-files', str(translated_count))
     set_output('skipped-files', str(skipped_count))
     
+    # Output translated files list for artifact upload
+    if translated_files:
+        set_output('translated-files-list', '\n'.join(translated_files))
+    else:
+        set_output('translated-files-list', '')
+    
     # Create PR if requested and there are changes
     if CREATE_PR and translated_count > 0:
         pr_url, pr_number = create_pull_request(translated_files)
         if pr_url:
             set_output('pr-url', pr_url)
             set_output('pr-number', pr_number)
+    elif translated_count > 0:
+        log(f"PR creation disabled. {translated_count} files translated and ready for artifact upload.")
 
 if __name__ == "__main__":
     main()

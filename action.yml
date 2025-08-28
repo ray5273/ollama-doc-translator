@@ -94,6 +94,9 @@ outputs:
   
   pr-number:
     description: 'Pull request number if created'
+  
+  translated-files-list:
+    description: 'List of translated files (newline-separated)'
 
 runs:
   using: 'composite'

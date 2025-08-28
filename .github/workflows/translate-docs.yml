@@ -66,13 +66,22 @@ jobs:
         temperature: 0
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
-        create-pr: true
+        create-pr: false
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
         base-branch: 'main'
         commit-message: 'docs: Auto-translate Korean documents to English'
         github-token: ${{ secrets.GITHUB_TOKEN }}
       id: translate
+
+    - name: Upload translated files as artifact
+      if: steps.translate.outputs.translated-files != '0' && inputs.create-pr == false
+      uses: actions/upload-artifact@v4
+      with:
+        name: translated-docs-${{ github.run_number }}
+        path: docs-en/
+        retention-days: 30
+        if-no-files-found: warn
 
     - name: Translation Summary
       if: always()
@@ -83,8 +92,10 @@ jobs:
         
         if [ -n "${{ steps.translate.outputs.pr-url }}" ]; then
           echo "- **Pull Request**: [${{ steps.translate.outputs.pr-number }}](${{ steps.translate.outputs.pr-url }})" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ steps.translate.outputs.translated-files }}" != "0" ]; then
+          echo "- **Artifact**: Translated files uploaded as artifact 'translated-docs-${{ github.run_number }}'" >> $GITHUB_STEP_SUMMARY
         else
-          echo "- **Pull Request**: No changes detected, no PR created" >> $GITHUB_STEP_SUMMARY
+          echo "- **Result**: No changes detected" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
