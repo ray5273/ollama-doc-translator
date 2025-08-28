@@ -24,6 +24,8 @@ CREATE_PR = os.getenv('INPUT_CREATE_PR', 'true').lower() == 'true'
 PR_TITLE = os.getenv('INPUT_PR_TITLE', 'Update English documentation translations')
 PR_BRANCH = os.getenv('INPUT_PR_BRANCH', 'translation-update')
 GITHUB_TOKEN = os.getenv('INPUT_GITHUB_TOKEN', '')
+BASE_BRANCH = os.getenv('INPUT_BASE_BRANCH', 'main')
+GITHUB_API_URL = os.getenv('INPUT_GITHUB_API_URL', 'https://api.github.com')
 SKIP_EXISTING = os.getenv('INPUT_SKIP_EXISTING', 'true').lower() == 'true'
 TEMPERATURE = float(os.getenv('INPUT_TEMPERATURE', '0.3'))
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', '3'))
@@ -43,7 +45,14 @@ def success(message):
 
 def set_output(name, value):
     """Set GitHub Actions output"""
-    print(f"::set-output name={name}::{value}")
+    # Use the newer method for setting outputs
+    github_output = os.getenv('GITHUB_OUTPUT')
+    if github_output:
+        with open(github_output, 'a') as f:
+            f.write(f"{name}={value}\n")
+    else:
+        # Fallback to older method
+        print(f"::set-output name={name}::{value}")
 
 def check_ollama_server():
     """Check if Ollama server is running"""
@@ -76,10 +85,10 @@ def pull_model():
             success(f"Model {MODEL} pulled successfully")
             return True
         else:
-            error(f"Failed to pull model: {result.stderr}")
+            log(f"Failed to pull model: {result.stderr}")
             return False
     except Exception as e:
-        error(f"Failed to pull model: {str(e)}")
+        log(f"Failed to pull model: {str(e)}")
         return False
 
 def translate_with_ollama(text, retries=0):
@@ -158,7 +167,7 @@ def process_markdown_file(input_path, output_path):
         error(f"Failed to process {input_path}: {str(e)}")
         return False
 
-def create_pull_request():
+def create_pull_request(translated_files=None):
     """Create a pull request with the changes"""
     if not GITHUB_TOKEN:
         log("No GitHub token provided, skipping PR creation")
@@ -166,32 +175,109 @@ def create_pull_request():
     
     try:
         # Configure git
-        subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'])
+        subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], 
+                      capture_output=True)
         subprocess.run(['git', 'config', 'user.email', 
-                       'github-actions[bot]@users.noreply.github.com'])
+                       'github-actions[bot]@users.noreply.github.com'], 
+                      capture_output=True)
         
-        # Check if there are changes
-        result = subprocess.run(['git', 'status', '--porcelain', TARGET_DIR], 
+        # Add only the translated files if specified, otherwise add all changes in target dir
+        if translated_files:
+            log(f"Adding {len(translated_files)} translated files to git")
+            for file_path in translated_files:
+                log(f"Adding: {file_path}")
+                subprocess.run(['git', 'add', file_path], capture_output=True)
+        else:
+            # Fallback to adding entire target directory
+            log(f"Adding all changes in {TARGET_DIR}")
+            subprocess.run(['git', 'add', TARGET_DIR], capture_output=True)
+        
+        # Check if there are staged changes
+        result = subprocess.run(['git', 'diff', '--cached', '--name-only'], 
                               capture_output=True, text=True)
         
         if not result.stdout.strip():
-            log("No changes to commit")
+            log("No staged changes to commit")
             return None, None
         
-        # Add changes
-        subprocess.run(['git', 'add', TARGET_DIR])
+        staged_files = result.stdout.strip().split('\n')
+        log(f"Staged files for commit: {staged_files}")
         
         # Create branch
         branch_name = f"{PR_BRANCH}-{int(time.time())}"
-        subprocess.run(['git', 'checkout', '-b', branch_name])
+        subprocess.run(['git', 'checkout', '-b', branch_name], capture_output=True)
         
         # Commit changes
-        subprocess.run(['git', 'commit', '-m', COMMIT_MESSAGE])
+        subprocess.run(['git', 'commit', '-m', COMMIT_MESSAGE], capture_output=True)
         
-        # Push branch
-        subprocess.run(['git', 'push', 'origin', branch_name])
+        # Get remote URL and extract repo info
+        remote_result = subprocess.run(['git', 'remote', 'get-url', 'origin'], 
+                                     capture_output=True, text=True)
+        if remote_result.returncode != 0:
+            log("Failed to get remote URL")
+            return None, None
         
-        # Create PR using GitHub CLI or API
+        remote_url = remote_result.stdout.strip()
+        
+        # Extract owner/repo from URL and determine GitHub instance
+        github_host = "github.com"
+        
+        if remote_url.startswith('git@'):
+            # SSH format: git@github.com:owner/repo.git or git@enterprise.com:owner/repo.git
+            host_and_path = remote_url.split('@')[1]
+            github_host = host_and_path.split(':')[0]
+            repo_part = host_and_path.split(':')[1].replace('.git', '')
+        else:
+            # HTTPS format: https://github.com/owner/repo.git or https://enterprise.com/owner/repo.git
+            if '//' in remote_url:
+                url_parts = remote_url.split('//')
+                if len(url_parts) > 1:
+                    host_and_path = url_parts[1]
+                    path_parts = host_and_path.split('/', 1)
+                    if len(path_parts) > 1:
+                        github_host = path_parts[0]
+                        repo_part = path_parts[1].replace('.git', '')
+                    else:
+                        log("Invalid repository URL format")
+                        return None, None
+                else:
+                    log("Invalid repository URL format")
+                    return None, None
+            else:
+                log("Invalid repository URL format")
+                return None, None
+        
+        if '/' not in repo_part:
+            log("Could not extract owner/repo from URL")
+            return None, None
+            
+        owner, repo = repo_part.split('/', 1)
+        
+        # Push branch using token authentication
+        push_url = f"https://x-access-token:{GITHUB_TOKEN}@{github_host}/{owner}/{repo}.git"
+        push_result = subprocess.run(['git', 'push', push_url, branch_name], 
+                                   capture_output=True, text=True)
+        
+        if push_result.returncode != 0:
+            log(f"Failed to push branch: {push_result.stderr}")
+            # Try to use existing remote
+            subprocess.run(['git', 'push', 'origin', branch_name], 
+                         capture_output=True, text=True)
+        
+        # Determine API URL based on GitHub instance
+        if GITHUB_API_URL != 'https://api.github.com':
+            # Use provided API URL (for GitHub Enterprise)
+            api_base_url = GITHUB_API_URL.rstrip('/')
+        elif github_host != 'github.com':
+            # Automatically construct Enterprise API URL
+            api_base_url = f"https://{github_host}/api/v3"
+        else:
+            # Default GitHub.com
+            api_base_url = "https://api.github.com"
+        
+        log(f"Using API URL: {api_base_url}")
+        
+        # Create PR using GitHub API
         pr_body = f"""## 📝 Documentation Translation Update
 
 This PR contains automatically generated English translations of Korean documentation files.
@@ -199,6 +285,9 @@ This PR contains automatically generated English translations of Korean document
 ### Changes
 - Translated Korean markdown files from `{SOURCE_DIR}/` to `{TARGET_DIR}/`
 - Used {MODEL} model for translation
+
+### Files Changed
+{chr(10).join(f'- `{file}`' for file in staged_files)}
 
 ### Translation Settings
 - Model: {MODEL}
@@ -211,23 +300,49 @@ Please review the translations for accuracy and merge if they look good.
 ---
 🤖 This PR was automatically generated by the Ollama Korean to English Translator action."""
         
-        # Try to use gh CLI first
+        # Create PR via GitHub API
+        api_url = f"{api_base_url}/repos/{owner}/{repo}/pulls"
+        pr_data = {
+            "title": PR_TITLE,
+            "body": pr_body,
+            "head": branch_name,
+            "base": BASE_BRANCH
+        }
+        
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
         try:
-            result = subprocess.run([
-                'gh', 'pr', 'create',
-                '--title', PR_TITLE,
-                '--body', pr_body,
-                '--head', branch_name
-            ], capture_output=True, text=True, check=True)
-            
-            pr_url = result.stdout.strip()
-            pr_number = pr_url.split('/')[-1]
-            
-            success(f"Pull request created: {pr_url}")
-            return pr_url, pr_number
-            
-        except subprocess.CalledProcessError:
-            log("GitHub CLI not available, skipping PR creation")
+            log(f"Creating PR with base branch: {BASE_BRANCH}")
+            response = requests.post(api_url, json=pr_data, headers=headers)
+            if response.status_code == 201:
+                pr_info = response.json()
+                pr_url = pr_info['html_url']
+                pr_number = str(pr_info['number'])
+                success(f"Pull request created: {pr_url}")
+                return pr_url, pr_number
+            else:
+                log(f"Failed to create PR via API: {response.status_code}")
+                log(f"Response: {response.text}")
+                
+                # If specified base branch failed, try common alternatives
+                if BASE_BRANCH not in ['main', 'master']:
+                    for fallback_branch in ['main', 'master']:
+                        log(f"Retrying with base branch: {fallback_branch}")
+                        pr_data["base"] = fallback_branch
+                        response = requests.post(api_url, json=pr_data, headers=headers)
+                        if response.status_code == 201:
+                            pr_info = response.json()
+                            pr_url = pr_info['html_url']
+                            pr_number = str(pr_info['number'])
+                            success(f"Pull request created with fallback branch: {pr_url}")
+                            return pr_url, pr_number
+                
+                return None, None
+        except Exception as e:
+            log(f"Failed to create PR via API: {str(e)}")
             return None, None
         
     except Exception as e:
@@ -275,6 +390,7 @@ def main():
     
     translated_count = 0
     skipped_count = 0
+    translated_files = []  # Keep track of translated files
     
     # Process each file
     for md_file in md_files:
@@ -290,6 +406,7 @@ def main():
         
         if process_markdown_file(md_file, output_file):
             translated_count += 1
+            translated_files.append(str(output_file))  # Add to translated files list
         else:
             skipped_count += 1
     
@@ -301,7 +418,7 @@ def main():
     
     # Create PR if requested and there are changes
     if CREATE_PR and translated_count > 0:
-        pr_url, pr_number = create_pull_request()
+        pr_url, pr_number = create_pull_request(translated_files)
         if pr_url:
             set_output('pr-url', pr_url)
             set_output('pr-number', pr_number)

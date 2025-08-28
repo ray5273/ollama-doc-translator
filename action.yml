@@ -57,6 +57,16 @@ inputs:
     required: false
     default: ${{ github.token }}
   
+  base-branch:
+    description: 'Base branch for pull request'
+    required: false
+    default: 'main'
+  
+  github-api-url:
+    description: 'GitHub API URL (for GitHub Enterprise)'
+    required: false
+    default: 'https://api.github.com'
+  
   skip-existing:
     description: 'Skip files that already exist and are newer'
     required: false
@@ -86,19 +96,65 @@ outputs:
     description: 'Pull request number if created'
 
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
-  env:
-    INPUT_OLLAMA_URL: ${{ inputs.ollama-url }}
-    INPUT_MODEL: ${{ inputs.model }}
-    INPUT_SOURCE_DIR: ${{ inputs.source-dir }}
-    INPUT_TARGET_DIR: ${{ inputs.target-dir }}
-    INPUT_FILE_PATTERN: ${{ inputs.file-pattern }}
-    INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
-    INPUT_CREATE_PR: ${{ inputs.create-pr }}
-    INPUT_PR_TITLE: ${{ inputs.pr-title }}
-    INPUT_PR_BRANCH: ${{ inputs.pr-branch }}
-    INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
-    INPUT_SKIP_EXISTING: ${{ inputs.skip-existing }}
-    INPUT_TEMPERATURE: ${{ inputs.temperature }}
-    INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Python dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+    
+    - name: Check Ollama availability
+      shell: bash
+      run: |
+        echo "🔍 Checking Ollama server at ${{ inputs.ollama-url }}"
+        
+        # Check if Ollama server is running
+        if ! curl -s "${{ inputs.ollama-url }}/api/tags" > /dev/null; then
+          echo "❌ Ollama server is not accessible at ${{ inputs.ollama-url }}"
+          echo "Please ensure:"
+          echo "1. Ollama is installed and running"
+          echo "2. Server is accessible at the specified URL"
+          exit 1
+        fi
+        
+        echo "✅ Ollama server is accessible"
+        
+        # Check if model is available
+        if ! curl -s "${{ inputs.ollama-url }}/api/tags" | grep -q "${{ inputs.model }}"; then
+          echo "⚠️ Model ${{ inputs.model }} not found, attempting to pull..."
+          if command -v ollama >/dev/null 2>&1; then
+            ollama pull "${{ inputs.model }}"
+          else
+            echo "❌ Ollama CLI not available. Please pull model manually: ollama pull ${{ inputs.model }}"
+            exit 1
+          fi
+        fi
+        
+        echo "✅ Model ${{ inputs.model }} is available"
+    
+    - name: Run translation
+      shell: bash
+      env:
+        INPUT_OLLAMA_URL: ${{ inputs.ollama-url }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_SOURCE_DIR: ${{ inputs.source-dir }}
+        INPUT_TARGET_DIR: ${{ inputs.target-dir }}
+        INPUT_FILE_PATTERN: ${{ inputs.file-pattern }}
+        INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        INPUT_CREATE_PR: ${{ inputs.create-pr }}
+        INPUT_PR_TITLE: ${{ inputs.pr-title }}
+        INPUT_PR_BRANCH: ${{ inputs.pr-branch }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_BASE_BRANCH: ${{ inputs.base-branch }}
+        INPUT_GITHUB_API_URL: ${{ inputs.github-api-url }}
+        INPUT_SKIP_EXISTING: ${{ inputs.skip-existing }}
+        INPUT_TEMPERATURE: ${{ inputs.temperature }}
+        INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
+      run: |
+        python "${{ github.action_path }}/entrypoint.py"
