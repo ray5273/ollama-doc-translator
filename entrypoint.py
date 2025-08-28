@@ -167,7 +167,7 @@ def process_markdown_file(input_path, output_path):
         error(f"Failed to process {input_path}: {str(e)}")
         return False
 
-def create_pull_request():
+def create_pull_request(translated_files=None):
     """Create a pull request with the changes"""
     if not GITHUB_TOKEN:
         log("No GitHub token provided, skipping PR creation")
@@ -181,16 +181,27 @@ def create_pull_request():
                        'github-actions[bot]@users.noreply.github.com'], 
                       capture_output=True)
         
-        # Check if there are changes
-        result = subprocess.run(['git', 'status', '--porcelain', TARGET_DIR], 
+        # Add only the translated files if specified, otherwise add all changes in target dir
+        if translated_files:
+            log(f"Adding {len(translated_files)} translated files to git")
+            for file_path in translated_files:
+                log(f"Adding: {file_path}")
+                subprocess.run(['git', 'add', file_path], capture_output=True)
+        else:
+            # Fallback to adding entire target directory
+            log(f"Adding all changes in {TARGET_DIR}")
+            subprocess.run(['git', 'add', TARGET_DIR], capture_output=True)
+        
+        # Check if there are staged changes
+        result = subprocess.run(['git', 'diff', '--cached', '--name-only'], 
                               capture_output=True, text=True)
         
         if not result.stdout.strip():
-            log("No changes to commit")
+            log("No staged changes to commit")
             return None, None
         
-        # Add changes
-        subprocess.run(['git', 'add', TARGET_DIR], capture_output=True)
+        staged_files = result.stdout.strip().split('\n')
+        log(f"Staged files for commit: {staged_files}")
         
         # Create branch
         branch_name = f"{PR_BRANCH}-{int(time.time())}"
@@ -274,6 +285,9 @@ This PR contains automatically generated English translations of Korean document
 ### Changes
 - Translated Korean markdown files from `{SOURCE_DIR}/` to `{TARGET_DIR}/`
 - Used {MODEL} model for translation
+
+### Files Changed
+{chr(10).join(f'- `{file}`' for file in staged_files)}
 
 ### Translation Settings
 - Model: {MODEL}
@@ -376,6 +390,7 @@ def main():
     
     translated_count = 0
     skipped_count = 0
+    translated_files = []  # Keep track of translated files
     
     # Process each file
     for md_file in md_files:
@@ -391,6 +406,7 @@ def main():
         
         if process_markdown_file(md_file, output_file):
             translated_count += 1
+            translated_files.append(str(output_file))  # Add to translated files list
         else:
             skipped_count += 1
     
@@ -402,7 +418,7 @@ def main():
     
     # Create PR if requested and there are changes
     if CREATE_PR and translated_count > 0:
-        pr_url, pr_number = create_pull_request()
+        pr_url, pr_number = create_pull_request(translated_files)
         if pr_url:
             set_output('pr-url', pr_url)
             set_output('pr-number', pr_number)
