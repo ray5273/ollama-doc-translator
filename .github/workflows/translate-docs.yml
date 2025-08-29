@@ -59,7 +59,7 @@ jobs:
       uses: ./  # Use the local action
       with:
         ollama-url: 'http://localhost:11434'
-        model: 'bnksys/yanolja-eeve-korean-instruct-10.8b'
+        model: 'exaone3.5:7.8b'
         source-dir: 'docs'
         target-dir: 'docs-en'
         file-pattern: '**/*.md'
