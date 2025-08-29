@@ -2,55 +2,52 @@
 
 ## Overview
 
-This document serves as a guide on how to perform text translation using the Ollama API.
+This document is a guide on how to perform text translation using the Ollama API.
 
 ## Basic Settings
 
-### 1. Installing Ollama
+1. Install Ollama
 
-First, install Ollama on the system:
+First, you need to install Ollama on the system:
 
 ```bash
-# Windows
-winget install Ollama.Ollama
-```
+ # Windows
+ winget install Ollama.Ollama
+ ```
 
 # macOS
-```bash
 brew install ollama
-```
 
+```
 # Linux
-```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-### 2. Model Download
+2. Model download
 
-Download the exaone3.5:7.8b model for translation:
+Downloading the ExaOne 3.5:7.8b model for use in translation:
 
-```bash
-git pull origin exaone3.5:7.8b
-```
+`docker pull exaone3.5:7.8b`
 
-## How to Use the API
+## API Usage
+
+English Translation:
 
 ### Basic Request
 
 ```bash
-curl -X POST http://localhost:11434/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "exaone3.5:7.8b",
-    "prompt": "Translate the following Korean text into English: 안녕하세요",
-    "stream": false
-  }'
-```
+ curl -X POST http://localhost:11434/api/generate \
+   -H "Content-Type: application/json" \
+   -d '{
+       "model": "exaone3.5:7.8b",
+       "prompt": "Please translate the following Korean text to English:안녕하세요",
+       "stream": false
+     }'
 
-### Response Format
+Answer format:
 
 ```json
-{
+ {
   "model": "exaone3.5:7.8b",
   "created_at": "2023-08-04T08:52:19.385406455-07:00",
   "response": "Hello",
@@ -60,20 +57,13 @@ curl -X POST http://localhost:11434/api/generate \
 
 ## Tips for Improving Translation Quality
 
-Please provide the Korean text you would like translated while adhering to the guidelines regarding context, specialized terminology handling, and consistency. Here is a template based on your request:
+1. **Provide context**: Supply the context for the text to be translated
+2. **Handle technical terms**: Define specialized terminologies separately
+3. **Maintain consistency**: Always use the same translation for identical terms
 
-**Korean Text:**
-[Insert Korean Text Here]
+## Cautions
 
-**English Translation:**
-[Insert Translated Text Here]
-
-If you provide the specific text, I can apply this structure directly to your content.
-
-## Important Notes
-
-```
-- Operates only in local environments
-- Does not require internet connection
+English translation:
+- Operates only in a local environment
+- Does not require an internet connection
 - Requires sufficient memory depending on model size
-```

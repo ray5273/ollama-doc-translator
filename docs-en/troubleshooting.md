@@ -1,34 +1,32 @@
-# Problem Solving Guide
+# Solution Guide
 
-## Common Issues and Solutions When Using Ollama Document Translator
-
-This guide addresses typical problems encountered while using the Ollama Document Translator and provides corresponding solutions.
+Guide to common issues that may occur while using the Ollama document translator and their solutions.
 
 ## Common Issues
+ (No additional translation or explanation provided, only the translated text is given.)
 
-### 1. Ollama Server Connection Error
+1. Ollama server connection error
 
 #### Symptoms
-```
-❌ Error: Ollama server is not running.
+ ```
+❌ Error: The Ollama server is not running.
 ❌ Connection refused: http://localhost:11434
 ```
 
-#### Solution Method
+#### Solution
 
-```markdown
-1. **Check Ollama Server Status**:
+(No additional explanation or context provided, just the translation of the given Korean text to English while maintaining the Markdown format and structure.)
+
+1. **Check Ollama Server Status:**
    ```bash
-   # Check Processes
+   # Check processes
    ps aux | grep ollama
    
-   # Check Service Status (Linux)
+   # Check service status (Linux)
    systemctl status ollama
    ```
-```
 
-```markdown
-2. **Start Ollama Server**:
+2. **Start an Ollama Server:**
    ```bash
    # Run in background
    ollama serve &
@@ -36,186 +34,189 @@ This guide addresses typical problems encountered while using the Ollama Documen
    # Or run in foreground
    ollama serve
    ```
-```
 
-```markdown
-3. **Port Check**:
+3. **Port Check:**
    ```bash
    # Check if port 11434 is in use
    netstat -tulpn | grep 11434
    lsof -i :11434
    ```
+
+4. **Firewall Setup:**
+```bash
+# Ubuntu/Debian
+sudo ufw allow 11434
+
+# CentOS/RHEL
+sudo firewall-cmd --add-port=11434/tcp --permanent
+sudo firewall-cmd --reload
 ```
 
-```markdown
-4. **Firewall Configuration**:
-   ```bash
-   # Ubuntu/Debian
-   sudo ufw allow 11434
-   
-   # CentOS/RHEL
-   sudo firewall-cmd --add-port=11434/tcp --permanent
-   sudo firewall-cmd --reload
-   ```
-```
-
-### 2. Model Download Failure
+2. Model download failure
 
 #### Symptoms
-```
-❌ Model 'exaone3.5:7.8b' not found.
+ ```
+❌ Model 'exaone3.5:7.8b' not found
 ❌ Failed to pull model: network timeout
 ```
 
-#### Solution Method
+#### Solution
 
-1. **Check Internet Connection**:
+(No additional explanation or context provided, just the translation of the given Korean text to English while maintaining the Markdown format and structure.)
+
+1. **Verify internet connection:**
    ```bash
    curl -I https://ollama.com
    ```
 
-2. **Manually Download the Model**:
-   ```bash
-   # Force Redownload the Model
-   ollama rm exaone3.5:7.8b
-   ollama pull exaone3.5:7.8b
-   ```
-
-```markdown
-3. **Proxy Settings** (Company Network):
-   ```bash
-   export HTTP_PROXY=http://proxy.company.com:8080
-   export HTTPS_PROXY=http://proxy.company.com:8080
-   ollama pull exaone3.5:7.8b
-   ```
+2. **Manually download a model:**
+```bash
+# Forcefully re-download a model
+ollama rm exaone3.5:7.8b
+ollama pull exaone3.5:7.8b
 ```
 
-4. **Check Disk Space**:
+3. **Proxy Setup** (Corporate Network):
+```bash
+export HTTP_PROXY=http://proxy.company.com:8080
+export HTTPS_PROXY=http://proxy.company.com:8080
+ollama pull exaone3.5:7.8b
+```
+
+4. **Disk space check:**
    ```bash
    df -h ~/.ollama/models
    ```
 
-### 3. Failure in GitHub Actions Workflow
+3. GitHub Actions workflow failure
 
 #### Symptoms
-```
+ ```
 ❌ Action failed: Container failed to start
 ❌ Permission denied
 ```
 
-#### Solution Method
+#### Solution
 
-```markdown
-1. **Self-hosted Runner Verification**:
+(No additional explanation or context provided, just the translation of the given Korean text to English while maintaining the Markdown format and structure.)
+
+1. **Verify Self-hosted Runner:**
    ```bash
-   # Check Runner Status
+   # Check Runner status
    ./run.sh --check
    
-   # Restart Runner
+   # Restart the Runner
    ./run.sh
    ```
+
+2. **Docker permission issue** (Linux):
+```bash
+# Add the user to the docker group
+sudo usermod -aG docker $USER
+
+# Logout required after this, then re-login
+newgrp docker
 ```
 
-2. **Docker Permission Issues** (Linux):
-   ```bash
-   # Add user to the docker group
-   sudo usermod -aG docker $USER
-   
-   # Requires logging out and logging back in
-   newgrp docker
-   ```
+3. **Token permission verification:**
+   - Go to Repository Settings → Actions → General
+   - In "Workflow permissions", select "Read and write permissions"
 
-3. **Token Authorization Verification**:
-   - Repository Settings → Actions → General
-   - Select "Read and write permissions" under "Workflow permissions"
-
-### 4. Translation Quality Issues
+4. Translation quality issues
 
 #### Symptoms
-- Inaccurate or inconsistent translations
-- Broken Markdown formatting
-- Incorrect translation of specialized terminology
+- Translation is inaccurate or inconsistent
+- Markdown formatting is broken
+- Professional terminology is mistranslated
 
-#### Solution Method
+#### Solution
 
-```markdown
-1. **Temperature Adjustment**:
+(No additional explanation or context provided, just the translation of the given Korean text to English while maintaining the Markdown format and structure.)
+
+1. **Temperature Adjustment:**
    ```yaml
-   temperature: 0.1  # For more consistent translations
+   temperature: 0.1  # for more consistent translation
    ```
 
-```yaml
-model: 'exaone3.5:32b'  # Use a Larger Model for Improved Accuracy
-```
+2. **Use a Larger Model:**
+   ```yaml
+   model: 'exaone3.5:32b'  # More accurate translation
+   ```
 
-```python
-# Adjust chunk size in entrypoint.py
-chunks = content.split('\n\n')  # By paragraph
-# Alternatively
-chunks = content.split('\n')   # By line
-```
+3. **Adjust chunk size:**
+   ```python
+   # Modified in entrypoint.py
+   chunks = content.split('\n\n')  # by paragraphs
+   # Or
+   chunks = content.split('\n')    # by lines
+   ```
 
+4. **Prompt Improvement:**
 ```python
-prompt = f"""Translate the following Korean technical document into English. 
-Maintain Markdown format precisely and keep technical terms in the original language.
+prompt = f"""Please translate the following Korean described text to English, maintaining the Markdown format and keeping the terminology in the original language.
 
 Korean Text:
 {text}
 
-English Translation:"""
+English Translation:}"""
 ```
 
-### 5. Memory Insufficient Error
+5. Memory card insufficient error
 
 #### Symptoms
-```
-❌ Out of memory error
-❌ Model failed to load
-```
+ ```
+ ❌ Out of memory error
+ ❌ Model failed to load
+ ```
 
-#### Solution Method
+#### Solution
 
-1. **System Memory Check**:
+(No additional explanation or context provided, just the translation of the given Korean text to English while maintaining the Markdown format and structure.)
+
+1. **Check system memory:**
    ```bash
    free -h
    htop
    ```
 
-```yaml
-model: 'mistral:7b'  # Uses less memory
-```
-
-**3. Add Swap Memory** (Linux):
-   ```bash
-   # Create a 4GB swap file
-   sudo fallocate -l 4G /swapfile
-   sudo chmod 600 /swapfile
-   sudo mkswap /swapfile
-   sudo swapon /swapfile
+2. **Use a smaller model:**
+   ```yaml
+   model: 'mistral:7b'  # Uses less memory
    ```
 
-```yaml
-# docker-compose.yml
-services:
-  ollama:
-    deploy:
-      resources:
-        limits:
-          memory: 8G
+3. **Add swap memory** (Linux):
+```bash
+# Create a 4GB swap file
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
 ```
 
-### 6. Failure to Create a Pull Request
+4. **Limit Docker Memory:**
+   ```yaml
+   # docker-compose.yml
+   services:
+     ollama:
+       deploy:
+         resources:
+           limits:
+             memory: 8G
+   ```
+
+6. Failed to create Pull Request
 
 #### Symptoms
-```
-❌ Failed to create pull request
-❌ GitHub CLI not found
-```
+ ```
+ X Failed to create pull request
+ X GitHub CLI not found
+ ```
 
-#### Solution Method
+#### Solution
 
-```markdown
-1. **Installation of GitHub CLI**:
+(No additional explanation or context provided, just the translation of the given Korean text to English while maintaining the Markdown format and structure.)
+
+1. **Install GitHub CLI:**
    ```bash
    # Ubuntu/Debian
    sudo apt install gh
@@ -226,162 +227,150 @@ services:
    # Windows
    winget install GitHub.cli
    ```
-```
 
-2. **Authentication Setup**:
+2. **Authentication Setup:**
    ```bash
    gh auth login
    ```
 
-3. **Token Authorization Check**:
-   - Verify repo permissions under Personal access tokens
+3. **Verify token permissions:**
+   - Verify repo permissions for personal access tokens
 
-```yaml
-create-pr: false
-```
+4. **Disable automatic PR generation:**
+   ```yaml
+   create-pr: false
+   ```
 
-### 7. File Encoding Issues
+7. File encoding issue
 
 #### Symptoms
-```
+ ```
 ❌ UnicodeDecodeError
-❌ Hangul characters displayed incorrectly
+❌ Corrupted display of Hangul (Korean characters)
 ```
 
-#### Solution Method
+#### Solution
 
-```bash
-file -i docs/*.md
-```
+(No additional explanation or context provided, just the translation of the given Korean text to English while maintaining the Markdown format and structure.)
 
-2. **Convert to UTF-8**:
+1. **Verify file encoding:**
    ```bash
-   # Convert file to UTF-8 encoding
+   file -i docs/*.md
+   ```
+
+2. **Convert to UTF-8:**
+   ```bash
+   # Convert file to UTF-8
    iconv -f EUC-KR -t UTF-8 input.md > output.md
    ```
 
-3. **Remove BOM** (if necessary):
-   ```bash
-   sed -i '1s/^\xEF\xBB\xBF//' *.md
-   ```
+3. **Remove BOM** (if needed):
+```bash
+sed -i '1s/^\\xEF\\xBB\\xBF//' *.md
+```
 
-## Performance Optimization Tips
+## Performance optimization tips
 
-### 1. Enhancing Translation Speed
+1. Improve translation speed
 
 ```yaml
-# Enable Parallel Processing
-max-parallel: 3
-```
+ # Enable parallel processing
+ max-parallel: 3
 
-# Skip Existing Files
-```markdown
-skip-existing: true
-```
+# Existing file skip
+ skip-existing: true
 
 # Using a Faster Model
-model: 'mistral:7b'
-
-### 2. Resource Monitoring
-
-```bash
-# System Resource Monitoring
-htop
-iostat -x 1
-nvidia-smi  # When using GPU
+model: "mistral:7b"
 ```
 
-### 3. Adjust Log Levels
+2. Resource Monitoring
+
+```bash
+ # System resource monitoring
+ htop
+ iostat -x 1
+ nvidia-smi  # For GPU usage
+```
+
+3. Adjust log level
 
 ```yaml
-# Disable Debug Mode (Production)
-debug: false
-verbose: false
+ # Disable debug mode (production)
+ debug: false
+ verbose: false
 ```
 
 ## Debugging Tools
 
-### 1. Log Collection
+1. Log collection
 
 ```bash
-# Checking Ollama Logs
-journalctl -u ollama -f
+ # Check Ollama log
+ journalctl -u ollama -f
 ```
 
-# Docker Logs
-```bash
-docker logs ollama-container
-```
+# Docker logs
+ docker logs ollama-container
 
-# Download GitHub Actions Logs
-```
-gh run download <run-id>
-```
+# Download GitHub Actions logs
+ gh run download <run-id>
+ ```
 
-### 2. Direct API Testing
+2. Direct API testing
 
-```bash
-# Direct Call to Ollama API
-curl -X POST http://localhost:11434/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "exaone3.5:7.8b",
-    "prompt": "Translate '안녕하세요' to English",
-    "stream": false
-  }'
-```
-
-### 3. Network Diagnostics
+Note: The English translation provided is accurate to the given input, maintaining the Markdown format and structure while only including the translated text without any additional explanation.
 
 ```bash
-# Network Connection Test
-telnet localhost 11434
+ # Direct call to Ollama API
+ curl -X POST http://localhost:11434/api/generate \
+   -H "Content-Type: application/json" \
+   -d '{"model": "exaone3.5.7.8b", "prompt": "Translate Hello in Korean to English", "stream": false}'
+
+3. Network Diagnostics
+
+```bash
+ # Network connection test
+ telnet localhost 11434
 ```
 
-# DNS Resolution Check
-```
+# Check DNS resolution for ollama.com
 nslookup ollama.com
 ```
 
 ## Request Support
 
-```
-If the problem persists:
-```
+In case the issue is not resolved:
 
-```markdown
-1. **Issue Template Creation**:
-   - Operating System and Version
-   - Ollama Version
-   - Used Model
-   - Error Messages
-   - Reproduction Steps
-```
+1. **Issue Template Creation:**
+   - Operating system and version
+   - Ollama version
+   - Model used
+   - Error message
+   - Steps to reproduce
 
-```markdown
-2. **Attach Logs**:
+2. **Log Attachment:**
    ```bash
-   # Collect Relevant Logs
+   # Collect relevant logs
    ollama serve > ollama.log 2>&1
    ```
 
-3. **GitHub Issues**:
+3. **GitHub Issues:**
    - [https://github.com/your-username/ollama-doc-translator/issues](https://github.com/your-username/ollama-doc-translator/issues)
 
-4. **Community Forum**:
-   - [Ollama Discord](https://discord.gg/ollama)
+4. **Community Forums:**
+   - [Ollama Discord] (https://discord.gg/ollama)
    - [GitHub Discussions](https://github.com/your-username/ollama-doc-translator/discussions)
 
 ## Frequently Asked Questions (FAQ)
 
-### Q: Why is translation so slow? How can I speed it up?
-A: Use a GPU, opt for a smaller model, or run on a Self-hosted runner.
+Q: How can I make the translation faster?
+A: You can use a GPU, use a smaller model, or run it on a self-hosted runner.
 
-### Q: How do you keep specific terms untranslated?
-A: Add instructions in the prompt like "Maintain technical terms in their original language."
+To indicate that certain terms should not be translated but kept as they are, add a note like "Keep specified terms untranslated" in the prompt.
 
-### Q: Can translations be done simultaneously in multiple languages?
-A: Currently, only Korean-English translation is supported, but multiple languages can be processed sequentially using a matrix strategy.
+Q: Can you perform translations simultaneously in multiple languages?
+A: Currently, we only support Korean to English, but with our matrix strategy, it is possible to process multiple languages sequentially.
 
-### Q: Does it work with private repositories as well?
-A: Yes, it is usable with private repositories by using a Personal Access Token.
+Q: Does it work with a private repository as well?
+A: Yes, using a Personal Access Token allows you to use it with a private repository.

@@ -1,161 +1,159 @@
 # Developer Guide
 
-```markdown
-This document serves as a guide for developers who wish to understand and contribute to the internal structure of the Ollama Document Translator.
-```
+This document is a guide for developers who want to understand the internal structure of the Ollama document translator and contribute to it.
 
 ## Project Structure
 
-```
 ollama-doc-translator/
-├── action.yml              # GitHub Actions metadata
-├── entrypoint.py          # Main execution script
-├── Dockerfile             # Docker container definition
-├── translate-local.py     # Local test script
-├── examples/              # Usage examples
-│   ├── basic-usage.yml
-│   └── advanced-usage.yml
-├── docs/                  # Korean documentation
+│
+│   action.yml              # GitHub Action metadata
+│   entrypoint.py          # Main execution script
+│   Dockerfile             # Docker container definition
+│   translate-local.py     # Local test script
+│   examples/              # Example usage
+│      ├── basic-usage.yml
+│      └── advanced-usage.yml
+│   docs/                  # Korean documentation
+│
 └── README.md             # Project documentation
-```
 
 ## Core Components
 
-### 1. GitHub Action Definition (action.yml)
-
-```markdown
-Defines the metadata for Actions available on the GitHub Marketplace:
+English translation:
+```yaml
+# GitHub Actions definition (action.yml)
 ```
+
+Defines the metadata for actions that can be used in the GitHub Marketplace:
 
 ```yaml
 name: 'Ollama Korean to English Translator'
-description: 'Korean to English Translation using Local Ollama API'
+description: "Local Ollama API-powered Korean-to-English translation"
 inputs:
   source-dir:
-    description: 'Directory containing Korean documents to be translated'
-    default: 'docs'
+    description: "Directory containing Korean text documents for translation"
+    default: "docs"
 outputs:
   translated-files:
-    description: 'Number of translated files'
-```
+    description: "Number of generated translations"
 
-### 2. Main Execution Logic (entrypoint.py)
+2. Main Execution Logic (entrypoint.py)
 
-```
-Python script responsible for the core logic of Action:
-```
+The Python script responsible for the core logic of Action:
 
 ```python
 def main():
-    # 1. Read Environment Variables
-    # 2. Verify Ollama Server Connection
-    # 3. Check Model Availability
-    # 4. Search Markdown Files
-    # 5. Translation Processing
+    # 1. Read environment variables
+    # 2. Check Ollama server connection
+    # 3. Check model availability
+    # 4. Search for Markdown file
+    # 5. Process translation
     # 6. Create PR
 ```
 
-### 3. Docker Container (Dockerfile)
+3. Docker Container (Dockerfile)
 
-Provides an isolated environment for executing actions:
+Provides an isolated environment for executing Action:
 
 ```dockerfile
-FROM python:3.11-slim
-# Install Ollama, GitHub CLI, and Python dependencies
-COPY entrypoint.py /entrypoint.py
-ENTRYPOINT ["python", "/entrypoint.py"]
+ FROM python:3.11-slim
+ # Install Ollama, GitHub CLI, and Python dependencies
+ COPY entrypoint.py /entrypoint.py
+ ENTRYPOINT ["python", "/entrypoint.py"]
 ```
 
 ## API Design
 
-### Ollama API Interface
+Ollama API interface
 
 ```python
-def translate_with_ollama(text, model="exaone3.5:7.8b"):
+def translate_with_ollama(text: str, model: str="exaone3.5:7.8b"):
     """
     Translate text using the Ollama API
     
-    Args:
+    Arguments:
         text (str): Korean text to be translated
         model (str): Name of the Ollama model to use
         
     Returns:
-        str: Translated English text
+        str: The resulting English translation
     """
     payload = {
         "model": model,
-        "prompt": f"Translate the following to English: {text}",
+        "prompt": f"Translate the following into English: {text}",
         "stream": False
     }
     response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload)
     return response.json()['response']
 ```
 
-### File Processing Pipeline
+English Translation:
+### File processing pipeline
 
-1. **File Discovery**: Search for Markdown files using glob patterns
-2. **Content Segmentation**: Divide large files into chunks
-3. **Translation Processing**: Sequentially translate each chunk
-4. **Result Merging**: Combine translated chunks back together
-5. **File Saving**: Save the translated content to the target directory
+1. **File Discovery:** Search for Markdown files using glob patterns
+2. **Content Splitting:** Split large files into chunks
+3. **Translation Processing:** Sequentially translate each chunk
+4. **Result Merging:** Recombine the translated chunks
+5. **Save File:** Save the translated content to the target directory
 
-## Setting Up the Development Environment
+## Setting up Development Environment
 
-### Local Development Environment
+English translation:
+#### Local development environment
 
-```markdown
-1. **Install Essential Tools**:
+1. **Required Tools Installation:**
    ```bash
-   # Python Dependencies
+   # Python dependencies
    pip install requests
    
-   # Ollama Installation
+   # Install Ollama
    curl -fsSL https://ollama.com/install.sh | sh
    
-   # Download Test Model
+   # Download test model
    ollama pull exaone3.5:7.8b
    ```
+
+2. **Executing Development Scripts:**
+```bash
+# Local testing
+python translate-local.py
+
+# Docker testing
+docker build -t ollama-translator .
+docker run --network host ollama-translator
 ```
 
-```markdown
-2. **Execution of Development Scripts**:
-   ```bash
-   # Local Test
-   python translate-local.py
-   
-   # Docker Test
-   docker build -t ollama-translator .
-   docker run --network host ollama-translator
-   ```
-```
+English translation:
 
-### Test Environment
+#### Test environment
 
 ```python
-# test_translation.py
-import unittest
-from unittest.mock import patch, Mock
+ # test_translation.py
+ import unittest
+ from unittest.mock import patch, Mock
 ```
 
 ```python
 class TestTranslation(unittest.TestCase):
-    @patch('requests.post')
-    def test_translate_with_ollama(self, mock_post):
+    def test_translate_with_ollama(self):
         # Mock API response
         mock_response = Mock()
         mock_response.json.return_value = {'response': 'Hello World'}
-        mock_post.return_value = mock_response
         
-        # Test translation function
-        result = translate_with_ollama("안녕하세요")
-        self.assertEqual(result, "Hello World")
+        def mock_post(*args, **kwargs):
+            return mock_response
+        
+        with patch('requests.post') as mock_post:
+            # Test translation function
+            result = translate_with_ollama("안녕하세요")
+            self.assertEqual(result, "Hello World")
 ```
 
 ## Scalability
 
-### Adding a New Language
+New language added (Korean text not provided)
 
-To support other language pairs, modify the following:
+To support another language pair, edit the following:
 
 ```python
 def get_translation_prompt(text, source_lang="ko", target_lang="en"):
@@ -167,9 +165,9 @@ def get_translation_prompt(text, source_lang="ko", target_lang="en"):
     return prompts.get((source_lang, target_lang))
 ```
 
-### Support for New File Formats
+New file type support
 
-Currently, only Markdown is supported, but additional formats can be added:
+Currently, only Markdown is supported but other formats are also possible to add:
 
 ```python
 def process_file(file_path):
@@ -183,63 +181,59 @@ def process_file(file_path):
         return process_latex_file(file_path)
 ```
 
-### Enhancing Translation Quality
+Improve Korean text translation quality
 
+1. **Front-end Engineering**:
 ```python
 def create_context_aware_prompt(text, context=""):
     return f"""
-    **Prompt Engineering**:
-    
     Context: {context}
     
-    Please translate the following technical document into English:
+    Please translate the following described document into English:
     - Maintain Markdown format
-    - Prioritize accuracy of specialized terminology
+    - Prioritize professional terminology accuracy
     - Use natural English expressions
     
-    Original Text: {text}
+    Original text: {text}
     Translation:
     """
 ```
 
+2. **Post-processing Improvements:**
 ```python
-2. **Post-Processing Enhancement**:
-   ```python
-   def post_process_translation(translated_text):
-       # Restore Markdown formatting
-       translated_text = fix_markdown_formatting(translated_text)
-       
-       # Ensure consistency in specialized terminology
-       translated_text = apply_terminology_rules(translated_text)
-       
-       return translated_text
-   ```
+def post_process_translation(translated_text):
+    # Restore markdown formatting
+    translated_text = fix_markdown_formatting(translated_text)
+    
+    # Ensure terminology consistency
+    translated_text = apply_terminology_rules(translated_text)
+    
+    return translated_text
+```
 
 ## Performance Optimization
 
-### Asynchronous Processing
+Non-blocking processing
 
 ```python
 import asyncio
 import aiohttp
 ```
 
-```python
 async def translate_async(session, text):
-    async with session.post(f"{OLLAMA_URL}/api/generate", 
-                           json=payload) as response:
+    async with session.post(f"{OLLAMA_URL}/api/generate", json=payload) as response:
         result = await response.json()
         return result['response']
-```
 
-```python
 async def process_files_async(file_list):
     async with aiohttp.ClientSession() as session:
         tasks = [translate_async(session, content) for content in file_list]
         return await asyncio.gather(*tasks)
-```
 
-### Caching System
+Markdown format translation:
+```
+[Korean text]:
+```
 
 ```python
 import hashlib
@@ -247,7 +241,6 @@ import pickle
 from pathlib import Path
 ```
 
-```python
 class TranslationCache:
     def __init__(self, cache_dir=".translation_cache"):
         self.cache_dir = Path(cache_dir)
@@ -272,129 +265,127 @@ class TranslationCache:
 
 ## Contribution Guide
 
-### Coding Style
+Code Style
 
-Coding Standards Used in the Project:
+Coding standards used in the project:
 
 ```python
-# Adherence to PEP 8
-# Function Name: snake_case
-# Class Name: PascalCase
-# Constant: UPPER_CASE
+ # Adheres to PEP 8
+ # Function name: snake_case
+ # Class name: PascalCase
+ # Constant: UPPER_CASE
 ```
 
 ```python
 def translate_text(source_text: str, model_name: str) -> str:
     """
-    Translates text.
+    Translates a text.
     
     Args:
-        source_text: The original text to be translated.
-        model_name: The name of the model to use for translation.
+        source_text: The original text to be translated
+        model_name: Name of the model to use
         
     Returns:
-        The translated text.
+        The translated text
         
     Raises:
-        TranslationError: Raised upon translation failure.
+        TranslationError: If translation fails
     """
     pass
-```
 
-### Commit Message Guidelines
+Markdown Format
 
-```
-feat: Added new features
-fix: Bug fixes
-docs: Documentation updates
-style: Changes in code style
-refactor: Code refactoring
-test: Added test cases
-chore: Miscellaneous tasks
-```
-
-```
-feat: Added Japanese Translation Support
-fix: Resolved Issue with Markdown Table Format Preservation
-docs: Added Examples of API Usage
-```
-
-### Pull Request Process
-
+Translation:
 ```markdown
-1. **Issue Creation**: Create an issue before implementing new features or bug fixes
-2. **Branch Creation**: Use formats like `feature/기능명` or `fix/버그명`
-3. **Code Writing**: Include test codes
-4. **PR Creation**: Submit with detailed descriptions
-5. **Review Process**: Merge after code review
+### Command Message Rules
 ```
 
-### Writing Tests
+feat: Added new feature
+fix: Fixed bugs
+docs: Updated documentation
+style: Changed code style
+refactor: Refactored code
+test: Added test code
+chore: Various chores
+
+Feature: Added Japanese translation support
+Fix: Resolved issue with preserving Markdown table formatting
+Docs: Added API usage example
+```
+
+Pull Request process
+
+1. **Issue creation**: Create a new issue for any new feature or bug fix beforehand
+2. **Branch creation**: In the format `feature/feature_name` or `fix/bug_name`
+3. **Code creation**: Write code including test code
+4. **Pull Request (PR) creation**: With detailed explanation
+5. **Review proceed**: Code review and merge afterwards
+
+English Translation:
+
+### Writing tests
 
 ```python
 # tests/test_translation.py
 def test_korean_to_english_translation():
-    """Test for Korean to English Translation"""
+    """Test for Korean to English translation"""
     korean_text = "안녕하세요. 반갑습니다."
     expected_english = "Hello. Nice to meet you."
     
     result = translate_with_ollama(korean_text)
     
-    # Verify if the result is reasonably accurate translation, even if not exact
+    # Check if the translation, although not exact, is reasonable
     assert "hello" in result.lower()
     assert len(result) > 0
 ```
 
-```python
 def test_markdown_preservation():
-    """Test for Markdown Format Preservation"""
-    markdown_text = "# Title\n\n**Bold Text** is here."
+    """Markdown formatting preservation test"""
+    markdown_text = "# Title\n\n**Bold text** here."
     
     result = translate_with_ollama(markdown_text)
     
     assert result.startswith("#")
     assert "**" in result
+
+English Translation:
+
+### Update document
+
+When adding new features, make sure to update the following documents:
+
+English translation:
+- `README.md`: Basic usage guide
+- `action.yml`: New input/output parameters
+- `docs/`: Detailed guide documents
+- `examples/`: Use case examples
+
+## Distribution Process
+
+Version Control
+
+Usage of Semantic Versioning: (link to https://semver.org/)
+
+```
+MAJOR: Incompatible API changes
+MINOR: Substantial feature additions with backward compatibility
+PATCH: Bug fixes with backward compatibility
 ```
 
-### Document Updates
+Release process
 
-When adding new features, ensure the following documents are updated:
-
-```markdown
-- `README.md`: Basic Usage Guide
-- `action.yml`: New Input/Output Parameters
-- `docs/`: Detailed Guide Documentation
-- `examples/`: Usage Examples
-```
-
-## Deployment Process
-
-### Version Control
-
-Using Semantic Versioning](https://semver.org/)
-
-```markdown
-- `MAJOR`: Incompatible API Changes
-- `MINOR`: Addition of Features with Backward Compatibility
-- `PATCH`: Bug Fixes with Backward Compatibility
-```
-
-### Release Procedure
-
-```markdown
-1. **Create Version Tag**:
+1. **Create version tag:**
    ```bash
    git tag -a v1.2.0 -m "Release v1.2.0"
    git push origin v1.2.0
    ```
-```
 
-2. **Create GitHub Release**:
+2. **Create GitHub Release:**
    - Automatically build Docker image
-   - Automatically update Marketplace
+   - Auto-update Marketplace
 
-3. **Document Updates**:
+3. **Document Updates:**
    - Update version information in README.md
    - Update CHANGELOG.md
 
-Thank you for your participation in development! Feel free to ask questions anytime through issues or discussions if you have any inquiries.
+Thank you for contributing to the development! If you have any questions, feel free to ask them at any time in issues or discussions.

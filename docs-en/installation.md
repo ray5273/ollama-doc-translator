@@ -1,234 +1,223 @@
 # Installation Guide
 
-This document provides a detailed guide on how to install and set up the Ollama Document Translator.
+This document provides a detailed guide on how to install and set up the Ollama document translator.
 
 ## System Requirements
 
-### Minimum Requirements
-- **Operating System**: Windows 10/11, macOS 10.14+, Ubuntu 18.04+
-- **Memory**: 8GB RAM (Recommended: 16GB or more)
-- **Storage Space**: At least 10GB of free space
-- **Network**: Internet connection (required for initial model download)
+Minimum Requirements:
+- **Operating System:** Windows 10/11, macOS 10.14+, Ubuntu 18.04+
+- **Memory:** 8GB RAM (Recommended: 16GB or higher)
+- **Storage Space:** More than 10GB of free space
+- **Network:** Internet connection (for initial model download)
 
-### Recommended Specifications
-- **CPU**: Multi-core processor (Intel i5 or higher, or AMD Ryzen 5 or higher)
-- **Memory**: 16GB RAM or more
-- **GPU**: NVIDIA GPU (with CUDA support) - Optional but recommended for performance enhancement
+Recommended Specifications
+- **CPU:** Multi-core processor (Intel i5 or higher, or AMD Ryzen 5 or higher)
+- **Memory:** 16GB RAM or higher
+- **GPU:** NVIDIA GPU (with CUDA support) - optional but helps improve performance
 
 ## Installing Ollama
 
-### Installation on Windows
+On Windows Installation
 
-1. **Using Windows Package Manager**:
+1. **Using the Windows package manager:**
    ```powershell
    winget install Ollama.Ollama
    ```
 
-2. **Manual Installation**:
+2. **Manual installation:**
    - Download the Windows installer file from the [Ollama official website](https://ollama.com/download)
-   - Run the downloaded file to proceed with installation
-   - Restart your system after installation is complete
+   - Run the downloaded file to proceed with the installation
+   - Restart your system after the installation is complete
 
-### Installation on macOS
+On macOS, install: (Note: The English translation is not a complete sentence as it seems to be part of a list or guide)
 
-```markdown
-1. **Using Homebrew** (Recommended):
+1. **Use Homebrew** (Recommended):
    ```bash
    brew install ollama
    ```
-```
 
-2. **Manual Installation**:
-   - Download the macOS installer file from the [Ollama official website](https://ollama.com/download)
-   - Drag the DMG file into the Applications folder after opening it
+2. **Manual installation:**
+   - Download the macOS install file from the [Ollama official website](https://ollama.com/download)
+   - Open the DMG file and drag it to the Applications folder
 
-### Installation on Linux
+On Linux, to install:
 
-```markdown
-1. **Automatic Installation Script** (Recommended):
+1. **Automated Installation Script** (Recommended):
    ```bash
    curl -fsSL https://ollama.com/install.sh | sh
    ```
 
-```markdown
-2. **Manual Installation**:
-   ```bash
-   # Installation using Docker
-   docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
-   ```
+2. **Manual installation:**
+  ```bash
+  # Installation using Docker
+  docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+  ```
 
 ## Model Installation
 
-### Download Exaone 3.5 Model
+Download Exaone3.5 model
 
-After installing Ollama, you need to download the model for translation:
-
-```bash
-# Download Basic Model
-ollama pull exaone3.5:7.8b
-```
-
-# When a Larger Model is Required
-```
-Pull ExaONE 3.5:32B via Ollama
-```
-
-### Other Translation Models
-
-If you want to compare translation quality, you can also try other models:
+After installing Ollama, you need to download the model to be used for translation:
 
 ```bash
-# Other Recommended Models
-ollama pull llama3.1:8b
-ollama pull mistral:7b
-ollama pull codellama:7b
+ # Download basic model
+ ollama pull exaone3.5:7.8b
 ```
 
-## Verify Settings
+# In cases where a larger model is needed
+ollama_pull_exaone3.5:32b
+```
 
-### Starting the Ollama Server
+Other translation models.
+
+If you want to compare translation quality, you can also try out other models:
 
 ```bash
-# Run Ollama Server in the Background
-ollama serve &
+ # Other recommended models
+ olm-api-python-client pull llama3.1:8b
+ olm-api-python-client pull mistral:7b
+ olm-api-python-client pull codellemas:7b
 ```
 
-### Installation Verification
+Note: The original Korean text provided was actually in Markdown format, not Korean language. In this case, I have preserved the structure and formatting while translating the comments to English based on their context.
 
-```markdown
-1. **Check Server Status**:
+## Configuration Check
+
+Launching Ollama server
+
+```bash
+ # Run the Ollama server in the background
+ ollama serve
+ ```
+
+Checking installation
+
+1. **Check server status:**
    ```bash
    curl http://localhost:11434/api/tags
    ```
 
-2. **Check Model List**:
+2. **List models:**
    ```bash
    ollama list
    ```
 
+3. **Simple Translation Test:**
 ```bash
-ollama run exaone3.5:7.8b "Translate 'Hello' to English"
+ollama run exaone3.5:7.8b "Please translate '안녕하세요' to English."
 ```
 
 ## Environment Setup
 
-### Setting Environment Variables
+Environment Variable Setup
 
-```
-Environment variables can be set as follows depending on the system:
-```
+The following environment variables can be set according to the system:
 
 **Windows (PowerShell)**:
 ```powershell
-$env:OLLAMA_HOST = "0.0.0.0:11434"
-$env:OLLAMA_MODELS = "C:\Users\[username]\.ollama\models"
-``` 
-
-(Note: The placeholder `[username]` should be replaced with the actual username when applying this script.)
+$ENV:OLLAMA_HOST = "0.0.0.0:11434"
+$ENV:OLLAMA_MODELS = "C:\Users\[username]\.ollama\models"
+```
 
 **macOS/Linux (Bash)**:
 ```bash
 export OLLAMA_HOST=0.0.0.0:11434
-export OLLAMA_MODELS=~/.ollama/models
+export OLLAMA_MODELS=$HOME/.ollama/models
 ```
 
-### Firewall Configuration
+Firewall setup
 
-Ollama primarily uses port 11434. If you need to access it over the network, add firewall rules accordingly:
+Ollama by default uses port 11434. If access is required from the network, add firewall rules:
 
 ```bash
-# Linux (ufw)
-sudo ufw allow 11434
+ # Linux (ufw)
+ sudo ufw allow 11434
 ```
 
-# Windows (PowerShell - Administrator Privileges)
 ```powershell
+# Windows (PowerShell - Administrator permissions)
 New-NetFirewallRule -DisplayName "Ollama" -Direction Inbound -Port 11434 -Protocol TCP -Action Allow
 ```
 
-## GitHub Actions Configuration
+## Setting up GitHub Actions
 
-### Self-hosted Runner Setup
+Self-hosted Runner setup
 
-To use a local Ollama server, setting up a Self-hosted Runner is recommended:
+To use a local Ollama server, it is recommended to set up a Self-hosted Runner:
 
-```markdown
-1. **GitHub Repository** → **Settings** → **Actions** → **Runners**
+1. Navigate to your **GitHub Repository** → **Settings** → **Actions** → **Runners**
 2. Click on **New self-hosted runner**
-3. Follow the guide appropriate for your operating system
-4. Ensure Ollama is running before starting the Runner
-```
+3. Follow the guide for your operating system to set it up
+4. Before starting the Runner, ensure that Ollama is running.
 
-### Setting Repository Secrets
+Repository Secrets Setup
 
-Set up secrets to use with GitHub Actions:
+Set up the secret to be used in GitHub Actions:
 
-```markdown
-1. **GitHub Repository** → **Settings** → **Secrets and variables** → **Actions**
-2. Add necessary secrets:
+1. **Go to GitHub Repository** → **Settings** → **Secrets and variables** → **Actions**
+2. Add required secrets:
    - `OLLAMA_URL`: Ollama server URL (default: http://localhost:11434)
-   - `GITHUB_TOKEN`: Provided automatically
-```
+   - `GITHUB_TOKEN`: provided automatically
 
 ## Performance Optimization
 
-### GPU Usage Configuration
+English Translation:
 
-If you have an NVIDIA GPU, you can enable CUDA:
+### GPU usage settings
+
+In cases where an NVIDIA GPU is present, you can enable CUDA.
 
 ```bash
-# Verify CUDA Support
+# Checking for CUDA support
 nvidia-smi
 ```
 
-# Enable GPU Usage
-```bash
+```python
+# Enable GPU usage
 export OLLAMA_GPU=1
 ```
 
-### Memory Optimization
+Memo: Memory optimization
 
-Optimize memory usage when using large models:
+When using large models, you can optimize memory usage:
 
 ```bash
-# Configure Model Loading Options
-export OLLAMA_NUM_PARALLEL=2
-export OLLAMA_MAX_LOADED_MODELS=1
-```
+ # Set model load options
+ export OLLAMA_NUM_PARALLEL=2
+ export OLLAMA_MAX_LOADED_MODELS=1
+ ```
 
-## Problem Solving
+## Resolving Issues
 
-## Troubleshooting Common Installation Issues:
+Solution for common installation issues:
 
-### Port Conflict
+Port conflict
 ```bash
-# Use a different port
-export OLLAMA_HOST=0.0.0.0:11436
+# Another port in use
+export OLLAMA_HOST=0.0.0.0:11435
 ollama serve
 ```
 
-### Permission Issues (Linux/macOS)
+Permission issue (LinUX/macOS)
 ```bash
-# Grant execution permissions to the Ollama binary
+# Grant execution permissions to Ollama binary
 chmod +x /usr/local/bin/ollama
 ```
 
-### Model Download Failure
 ```bash
-# Proxy Configuration (if needed)
+# Proxy setup (if necessary)
 export HTTP_PROXY=http://proxy.company.com:8080
 export HTTPS_PROXY=http://proxy.company.com:8080
 ollama pull exaone3.5:7.8b
 ```
 
-## Next Steps
+## Next Step
 
-```markdown
-Refer to the following documents once installation is complete:
-```
+Once the installation is complete, refer to the following documents:
 
-- [Configuration Guide](configuration.md) - Detailed Configuration Options
-- [API Guide](api-guide.md) - How to Use the API
-- [Troubleshooting Guide](troubleshooting.md) - Resolving Common Issues
+English translation:
+- [Configuration guide](configuration.md) - Detailed configuration options
+- [API guide](api-guide.md) - Guide on using the API
+- [Troubleshooting guide](troubleshooting.md) - Resolving common issues
 
-If you encounter any issues during installation, please reach out via [GitHub Issues](https://github.com/your-username/ollama-doc-translator/issues).
+If you encounter issues during installation, please reach out on [GitHub Issues](https://github.com/your-username/ollama-doc-translator/issues).
