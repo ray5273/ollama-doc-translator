@@ -183,14 +183,17 @@ def process_markdown_file(input_path, output_path):
                 print(f"📊 Processing {total_chunks} chunks (safe input: {safe_input_length}, context: {CONTEXT_LENGTH})...", flush=True)
                 
                 for i, chunk in enumerate(chunks):
-                    print(f"🔄 [{i+1}/{total_chunks}] Processing chunk...", end='', flush=True)
+                    print(f"🔄 [{i+1}/{total_chunks}] Processing chunk (len: {len(chunk)})...", end='', flush=True)
                     
                     translated_chunk = translate_with_ollama(chunk)
-                    translated_chunks.append(translated_chunk)
-                    
-                    print(f" ✅ Done", flush=True)
+                    if translated_chunk:
+                        translated_chunks.append(translated_chunk)
+                        print(f" ✅ Done (result len: {len(translated_chunk)})", flush=True)
+                    else:
+                        print(f" ⚠️ Empty result", flush=True)
                     time.sleep(0.5)
                 
+                print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
                 translated_content = '\n\n'.join(translated_chunks)
             else:
                 # File is small enough, process as single chunk
