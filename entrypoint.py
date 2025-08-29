@@ -151,9 +151,11 @@ def process_markdown_file(input_path, output_path):
         
         if CONTEXT_LENGTH > 0:
             # Calculate safe input length (reserve space for prompt and output)
-            prompt_overhead = 500  # Space for translation prompt
-            output_reserve = CONTEXT_LENGTH // 3  # Reserve 1/3 for output
-            safe_input_length = CONTEXT_LENGTH - prompt_overhead - output_reserve
+            # Approximate 4 chars per token for Korean text
+            prompt_overhead = 500  # Space for translation prompt (tokens)
+            output_reserve = CONTEXT_LENGTH // 2  # Reserve 1/2 for output
+            safe_input_tokens = CONTEXT_LENGTH - prompt_overhead - output_reserve
+            safe_input_length = min(safe_input_tokens * 3, 8000)  # Cap at 8000 chars for quality
             
             if len(content) > safe_input_length:
                 # Split content into chunks based on safe input length

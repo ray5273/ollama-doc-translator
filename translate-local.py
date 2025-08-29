@@ -76,9 +76,11 @@ def process_markdown_file(input_path, output_path, context_length=4096, ssl_veri
     
     if context_length > 0:
         # Calculate safe input length (reserve space for prompt and output)
-        prompt_overhead = 500  # Space for translation prompt
-        output_reserve = context_length // 3  # Reserve 1/3 for output
-        safe_input_length = context_length - prompt_overhead - output_reserve
+        # Approximate 4 chars per token for Korean text
+        prompt_overhead = 500  # Space for translation prompt (tokens)
+        output_reserve = context_length // 2  # Reserve 1/2 for output
+        safe_input_tokens = context_length - prompt_overhead - output_reserve
+        safe_input_length = min(safe_input_tokens * 3, 8000)  # Cap at 8000 chars for quality
         
         if len(content) > safe_input_length:
             # Split content into chunks based on safe input length
