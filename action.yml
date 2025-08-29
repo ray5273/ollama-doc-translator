@@ -16,6 +16,11 @@ inputs:
     description: 'Ollama model to use for translation'
     required: false
     default: 'exaone3.5:7.8b'
+
+  context-length:
+    description: 'Model context length for chunking (0 = no chunking)'
+    required: true
+    default: '32768'
   
   source-dir:
     description: 'Source directory containing Korean markdown files'
@@ -86,11 +91,6 @@ inputs:
     description: 'Enable SSL certificate verification'
     required: false
     default: 'true'
-  
-  enable-chunking:
-    description: 'Enable document chunking for translation'
-    required: false
-    default: 'false'
 
 outputs:
   translated-files:
@@ -170,6 +170,6 @@ runs:
         INPUT_TEMPERATURE: ${{ inputs.temperature }}
         INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
         INPUT_SSL_VERIFY: ${{ inputs.ssl-verify }}
-        INPUT_ENABLE_CHUNKING: ${{ inputs.enable-chunking }}
+        INPUT_CONTEXT_LENGTH: ${{ inputs.context-length }}
       run: |
         python "${{ github.action_path }}/entrypoint.py"

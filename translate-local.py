@@ -67,31 +67,57 @@ def translate_with_ollama(text, model="exaone3.5:7.8b", ssl_verify=True):
         print(f"번역 오류: {e}")
         return text
 
-def process_markdown_file(input_path, output_path, enable_chunking=True, ssl_verify=True):
+def process_markdown_file(input_path, output_path, context_length=4096, ssl_verify=True):
     """마크다운 파일을 번역하여 저장"""
     print(f"\n번역 중: {input_path} -> {output_path}")
     
     with open(input_path, 'r', encoding='utf-8') as f:
         content = f.read()
     
-    if enable_chunking:
-        # 큰 파일을 처리하기 위해 청크로 분할
-        chunks = content.split('\n\n')
-        translated_chunks = []
+    if context_length > 0:
+        # Calculate safe input length (reserve space for prompt and output)
+        prompt_overhead = 500  # Space for translation prompt
+        output_reserve = context_length // 3  # Reserve 1/3 for output
+        safe_input_length = context_length - prompt_overhead - output_reserve
         
-        for i, chunk in enumerate(chunks):
-            if chunk.strip():
+        if len(content) > safe_input_length:
+            # Split content into chunks based on safe input length
+            chunks = []
+            current_chunk = ""
+            paragraphs = content.split('\n\n')
+            
+            for paragraph in paragraphs:
+                if len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
+                    if current_chunk:
+                        current_chunk += '\n\n' + paragraph
+                    else:
+                        current_chunk = paragraph
+                else:
+                    if current_chunk:
+                        chunks.append(current_chunk)
+                    current_chunk = paragraph
+            
+            if current_chunk:
+                chunks.append(current_chunk)
+            
+            translated_chunks = []
+            
+            print(f"청크로 분할하여 번역 ({len(chunks)}개 청크, 안전한 입력 길이: {safe_input_length})")
+            
+            for i, chunk in enumerate(chunks):
                 print(f"청크 번역 중 {i+1}/{len(chunks)}")
                 translated_chunk = translate_with_ollama(chunk, ssl_verify=ssl_verify)
                 translated_chunks.append(translated_chunk)
                 time.sleep(1)  # API 속도 제한
-            else:
-                translated_chunks.append(chunk)
-        
-        translated_content = '\n\n'.join(translated_chunks)
+            
+            translated_content = '\n\n'.join(translated_chunks)
+        else:
+            # 파일이 충분히 작아서 한 번에 처리 가능
+            print(f"전체 파일을 한 번에 번역합니다 (크기: {len(content)}, 안전 제한: {safe_input_length})...")
+            translated_content = translate_with_ollama(content, ssl_verify=ssl_verify)
     else:
-        # 전체 파일을 한 번에 처리
-        print("전체 파일을 한 번에 번역합니다...")
+        # Context length 제한 없음, 전체 파일을 한 번에 처리
+        print("전체 파일을 한 번에 번역합니다 (context 제한 없음)...")
         translated_content = translate_with_ollama(content, ssl_verify=ssl_verify)
     
     # 출력 디렉토리 생성
@@ -108,9 +134,10 @@ def main():
     
     # 설정 옵션
     ssl_verify = input("SSL 인증서 검증을 사용하시겠습니까? (y/n, 기본값: y): ").lower() not in ['n', 'no']
-    enable_chunking = input("문서 분할(청킹) 기능을 사용하시겠습니까? (y/n, 기본값: y): ").lower() not in ['n', 'no']
+    context_input = input("모델 context 길이를 입력하세요 (0 = chunking 안함, 기본값: 4096): ").strip()
+    context_length = int(context_input) if context_input else 4096
     
-    print(f"설정: SSL 검증 = {ssl_verify}, 청킹 = {enable_chunking}")
+    print(f"설정: SSL 검증 = {ssl_verify}, Context 길이 = {context_length}")
     
     # Ollama 서버 확인
     if not check_ollama_server(ssl_verify):
@@ -159,7 +186,7 @@ def main():
             print(f"⏭️  {md_file} 건너뛰기 (번역본이 최신)")
             continue
         
-        process_markdown_file(md_file, output_file, enable_chunking, ssl_verify)
+        process_markdown_file(md_file, output_file, context_length, ssl_verify)
     
     print(f"\n🎉 모든 번역이 완료되었습니다!")
     print(f"번역된 파일들은 '{docs_en_dir}' 디렉토리에서 확인할 수 있습니다.")

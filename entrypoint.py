@@ -30,7 +30,7 @@ SKIP_EXISTING = os.getenv('INPUT_SKIP_EXISTING', 'true').lower() == 'true'
 TEMPERATURE = float(os.getenv('INPUT_TEMPERATURE', '0.3'))
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', '3'))
 SSL_VERIFY = os.getenv('INPUT_SSL_VERIFY', 'true').lower() == 'true'
-ENABLE_CHUNKING = os.getenv('INPUT_ENABLE_CHUNKING', 'true').lower() == 'true'
+CONTEXT_LENGTH = int(os.getenv('INPUT_CONTEXT_LENGTH') or '32768')
 
 def log(message):
     """Print log message with timestamp"""
@@ -149,33 +149,54 @@ def process_markdown_file(input_path, output_path):
         with open(input_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        if ENABLE_CHUNKING:
-            # Split content into chunks for better processing
-            chunks = content.split('\n\n')
-            translated_chunks = []
+        if CONTEXT_LENGTH > 0:
+            # Calculate safe input length (reserve space for prompt and output)
+            prompt_overhead = 500  # Space for translation prompt
+            output_reserve = CONTEXT_LENGTH // 3  # Reserve 1/3 for output
+            safe_input_length = CONTEXT_LENGTH - prompt_overhead - output_reserve
             
-            total_chunks = len([c for c in chunks if c.strip()])
-            processed_chunks = 0
-            
-            print(f"📊 Processing {total_chunks} chunks...", flush=True)
-            
-            for i, chunk in enumerate(chunks):
-                if chunk.strip():
-                    processed_chunks += 1
-                    print(f"🔄 [{processed_chunks}/{total_chunks}] Processing chunk...", end='', flush=True)
+            if len(content) > safe_input_length:
+                # Split content into chunks based on safe input length
+                chunks = []
+                current_chunk = ""
+                paragraphs = content.split('\n\n')
+                
+                for paragraph in paragraphs:
+                    if len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
+                        if current_chunk:
+                            current_chunk += '\n\n' + paragraph
+                        else:
+                            current_chunk = paragraph
+                    else:
+                        if current_chunk:
+                            chunks.append(current_chunk)
+                        current_chunk = paragraph
+                
+                if current_chunk:
+                    chunks.append(current_chunk)
+                
+                translated_chunks = []
+                total_chunks = len(chunks)
+                
+                print(f"📊 Processing {total_chunks} chunks (safe input: {safe_input_length}, context: {CONTEXT_LENGTH})...", flush=True)
+                
+                for i, chunk in enumerate(chunks):
+                    print(f"🔄 [{i+1}/{total_chunks}] Processing chunk...", end='', flush=True)
                     
                     translated_chunk = translate_with_ollama(chunk)
                     translated_chunks.append(translated_chunk)
                     
                     print(f" ✅ Done", flush=True)
-                    time.sleep(0.5)  # Reduced rate limiting for better UX
-                else:
-                    translated_chunks.append(chunk)
-            
-            translated_content = '\n\n'.join(translated_chunks)
+                    time.sleep(0.5)
+                
+                translated_content = '\n\n'.join(translated_chunks)
+            else:
+                # File is small enough, process as single chunk
+                print(f"📄 Processing entire file as one chunk (size: {len(content)}, safe limit: {safe_input_length})...", flush=True)
+                translated_content = translate_with_ollama(content)
         else:
-            # Process entire file at once
-            print(f"📄 Processing entire file as one chunk...", flush=True)
+            # No context length limit, process entire file
+            print(f"📄 Processing entire file as one chunk (no context limit)...", flush=True)
             translated_content = translate_with_ollama(content)
         
         # Create output directory

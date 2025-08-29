@@ -21,11 +21,6 @@ on:
         required: false
         default: true
         type: boolean
-      enable_chunking:
-        description: 'Enable document chunking for translation'
-        required: false
-        default: false
-        type: boolean
 permissions:
   contents: write
   pull-requests: write
@@ -77,7 +72,7 @@ jobs:
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
         ssl-verify: ${{ inputs.ssl_verify }}
-        enable-chunking: ${{ inputs.enable_chunking }}
+        context-length: ${{ inputs.context_length }}
         create-pr: true
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
