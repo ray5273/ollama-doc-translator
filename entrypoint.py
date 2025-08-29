@@ -30,7 +30,7 @@ SKIP_EXISTING = os.getenv('INPUT_SKIP_EXISTING', 'true').lower() == 'true'
 TEMPERATURE = float(os.getenv('INPUT_TEMPERATURE', '0.3'))
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', '3'))
 SSL_VERIFY = os.getenv('INPUT_SSL_VERIFY', 'true').lower() == 'true'
-ENABLE_CHUNKING = os.getenv('INPUT_ENABLE_CHUNKING', 'false').lower() == 'true'
+ENABLE_CHUNKING = os.getenv('INPUT_ENABLE_CHUNKING', 'true').lower() == 'true'
 
 def log(message):
     """Print log message with timestamp"""

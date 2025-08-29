@@ -76,8 +76,8 @@ jobs:
         temperature: 0
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
-        ssl-verify: ${{ inputs.ssl_verify || true }}
-        enable-chunking: ${{ inputs.enable_chunking || true }}
+        ssl-verify: ${{ inputs.ssl_verify }}
+        enable-chunking: ${{ inputs.enable_chunking }}
         create-pr: true
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
