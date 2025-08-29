@@ -75,12 +75,17 @@ def process_markdown_file(input_path, output_path, context_length=4096, ssl_veri
         content = f.read()
     
     if context_length > 0:
-        # Calculate safe input length (reserve space for prompt and output)
-        # Approximate 4 chars per token for Korean text
-        prompt_overhead = 500  # Space for translation prompt (tokens)
-        output_reserve = context_length // 2  # Reserve 1/2 for output
-        safe_input_tokens = context_length - prompt_overhead - output_reserve
-        safe_input_length = min(safe_input_tokens * 3, 8000)  # Cap at 8000 chars for quality
+        # Calculate safe input length based on context size
+        if context_length <= 8192:
+            safe_input_length = 2000  # Very small chunks for small context
+        elif context_length <= 32768:
+            safe_input_length = 6000  # Medium chunks
+        else:
+            # For large context, use proportional calculation
+            prompt_overhead = 500
+            output_reserve = context_length // 2
+            safe_input_tokens = context_length - prompt_overhead - output_reserve
+            safe_input_length = safe_input_tokens * 2
         
         if len(content) > safe_input_length:
             # Split content into chunks based on safe input length
@@ -89,7 +94,29 @@ def process_markdown_file(input_path, output_path, context_length=4096, ssl_veri
             paragraphs = content.split('\n\n')
             
             for paragraph in paragraphs:
-                if len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
+                # If paragraph itself is too long, split it further
+                if len(paragraph) > safe_input_length:
+                    # Save current chunk if it exists
+                    if current_chunk:
+                        chunks.append(current_chunk)
+                        current_chunk = ""
+                    
+                    # Split long paragraph by sentences or lines
+                    lines = paragraph.split('\n')
+                    temp_chunk = ""
+                    for line in lines:
+                        if len(temp_chunk) + len(line) + 1 <= safe_input_length:
+                            if temp_chunk:
+                                temp_chunk += '\n' + line
+                            else:
+                                temp_chunk = line
+                        else:
+                            if temp_chunk:
+                                chunks.append(temp_chunk)
+                            temp_chunk = line
+                    if temp_chunk:
+                        current_chunk = temp_chunk
+                elif len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
                     if current_chunk:
                         current_chunk += '\n\n' + paragraph
                     else:
