@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document serves as a guide on how to perform text translation using the Ollama API.
+This document is a guide on how to perform text translation using the Ollama API.
 
 ## Basic Settings
 
-### 1. Installing Ollama
+### 1. Ollama Installation
 
-First, install Ollama on the system:
+First, you need to install Ollama on your system:
 
 ```bash
 # Windows
@@ -16,24 +16,20 @@ winget install Ollama.Ollama
 ```
 
 # macOS
-```bash
 brew install ollama
-```
 
 # Linux
-```bash
 curl -fsSL https://ollama.com/install.sh | sh
-```
 
 ### 2. Model Download
 
-Download the exaone3.5:7.8b model for translation:
+Download the exaone3.5:7.8b model to be used for translation:
 
 ```bash
-git pull origin exaone3.5:7.8b
+ollama pull exaone3.5:7.8b
 ```
 
-## How to Use the API
+## API Usage
 
 ### Basic Request
 
@@ -58,22 +54,16 @@ curl -X POST http://localhost:11434/api/generate \
 }
 ```
 
-## Tips for Improving Translation Quality
+## Improving Translation Quality
 
-Please provide the Korean text you would like translated while adhering to the guidelines regarding context, specialized terminology handling, and consistency. Here is a template based on your request:
+1. **Providing Context**: Provide the context of the text to be translated along with it.
+2. **Handling Technical Terms**: Provide separate definitions for technical terms.
+3. **Maintaining Consistency**: Always use the same translation for the same terms.
 
-**Korean Text:**
-[Insert Korean Text Here]
+## 주의사항
 
-**English Translation:**
-[Insert Translated Text Here]
+## Precautions
 
-If you provide the specific text, I can apply this structure directly to your content.
-
-## Important Notes
-
-```
-- Operates only in local environments
-- Does not require internet connection
-- Requires sufficient memory depending on model size
-```
+- Operates only in a local environment
+- Does not require an internet connection
+- Requires sufficient memory depending on the model size

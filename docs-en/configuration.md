@@ -1,30 +1,21 @@
 # Setup Guide
 
-## Detailed Settings and Customization Methods for the Ollama Document Translator
+Ollama translator's detailed configuration options and customization methods are explained.
 
-**Note:** This translation maintains the markdown structure without additional explanation as requested.
-
-## GitHub Action Configuration
+## GitHub Action Setup
 
 ### Basic Settings
 
-## Basic Workflow Setup:
-
-*  [Your workflow setup details would go here, maintaining markdown structure.]
+Simplest Workflow Setup:
 
 ```yaml
 name: Document Translation
-
-English Translation:
 ```
 
-```yaml
 on:
   push:
     paths: ['docs/**/*.md']
-```
 
-```markdown
 jobs:
   translate:
     runs-on: self-hosted
@@ -33,34 +24,33 @@ jobs:
     - uses: your-username/ollama-doc-translator@v1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-```
 
 ### Advanced Settings
 
-Example utilizing all settings options:
+All settings options utilized example:
 
 ```yaml
 - uses: your-username/ollama-doc-translator@v1
   with:
-    # Server Configuration
+    # Server configuration
     ollama-url: 'http://localhost:11434'
     model: 'exaone3.5:7.8b'
     
-    # Directory Configuration
+    # Directory configuration
     source-dir: 'docs'
     target-dir: 'docs-en'
     file-pattern: '**/*.md'
     
-    # Translation Settings
+    # Translation configuration
     temperature: 0.3
     max-retries: 3
     skip-existing: true
     
-    # PR Settings
+    # PR configuration
     create-pr: true
-    pr-title: 'Document Translation Update'
+    pr-title: 'Document translation update'
     pr-branch: 'translate-docs'
-    commit-message: 'Add English Translation of Korean Documents'
+    commit-message: 'docs: Add English translation for Korean documents'
     
     # Authentication
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -70,39 +60,39 @@ Example utilizing all settings options:
 
 ### Supported Models
 
-Various Ollama models are available:
+You can use various Ollama models:
 
 | Model Name | Size | Memory Requirement | Translation Quality | Speed |
-|-----------|------|--------------------|---------------------|-------|
+|--------|------|---------------|-----------|------|
 | `exaone3.5:7.8b` | 7.8B | 8GB | Excellent | Fast |
-| `exaone3.5:32b` | 32B | 32GB | Best | Slow |
+| `exaone3.5:32b` | 32B | 32GB | Superior | Slow |
 | `llama3.1:8b` | 8B | 8GB | Good | Fast |
 | `mistral:7b` | 7B | 7GB | Good | Very Fast |
 
 ### Model Performance Tuning
 
-#### Temperature Settings
+#### Temperature Setting
 ```yaml
-temperature: 0.1  # More Consistent Translation (Conservative)
-temperature: 0.3  # Balanced Translation (Recommended)
-temperature: 0.7  # More Creative Translation
+temperature: 0.1  # More consistent translation (conservative)
+temperature: 0.3  # Balanced translation (recommended)
+temperature: 0.7  # More creative translation
 ```
 
 #### Context Length
 ```yaml
-# Settings for long documents
+# Configuration for long documents
 context-length: 4096  # Default: 2048
 ```
 
-## Directory Structure Setup
+## Setting Up the Directory Structure
 
 ### Basic Structure
 ```
 project/
-├── docs/           # Original Korean
+├── docs/           # Korean original
 │   ├── README.md
 │   └── guide.md
-└── docs-en/        # English Translation
+└── docs-en/        # English translation
     ├── README.md
     └── guide.md
 ```
@@ -119,7 +109,7 @@ file-pattern: '**/*.{md,mdx}'
 # Maintain subdirectory structure
 source-dir: 'docs'
 target-dir: 'docs-en'
-file-pattern: '**/*.md'  # Includes all subdirectories
+file-pattern: '**/*.md'  # Include all subdirectories
 ```
 
 ```
@@ -132,13 +122,8 @@ docs/
 └── README.md
 ```
 
-→ **Translation Needed:** Please provide the Korean text you would like translated into English while preserving Markdown formatting. 
+→ Translation after
 
-영어 번역:
-→ **Original Korean Text Placeholder**  
-→ **English Translation Placeholder**
-
-```markdown
 docs-en/
 ├── getting-started/
 │   ├── installation.md
@@ -146,7 +131,8 @@ docs-en/
 ├── advanced/
 │   └── configuration.md
 └── README.md
-```
+
+## 워크플로우 트리거 설정
 
 ## Workflow Trigger Setup
 
@@ -164,25 +150,23 @@ on:
 ```yaml
 on:
   schedule:
-    - cron: '0 2 * * 0'  # Every Monday at 2 AM
-  workflow_dispatch:     # Allow manual execution
+    - cron: '0 2 * * 1'  # Every Monday at 2:00 AM
+  workflow_dispatch:     # Allow manual triggering
 ```
-
-(참고: 원래의 `* * * * 1` (월요일)을 `* * * * 0`으로 수정하여 영어 번역에서의 명확성을 유지했습니다. 만약 월요일을 정확히 유지해야 한다면, `0 2 * * 1`을 그대로 번역할 수 있습니다.)
 
 ### Conditional Execution
 ```yaml
 jobs:
   translate:
     if: contains(github.event.head_commit.message, '[translate]')
-    # Execute only if '[translate]' is included in the commit message
+    # Run only if the commit message contains '[translate]'
 ```
 
-## Setting Up Pull Requests
+## Pull Request Settings
 
-### Customizing PR Templates
+### PR Template Customization
 
-You can customize the basic PR body text:
+You can customize the default PR body:
 
 ```yaml
 pr-title: '📚 Document Translation: ${{ github.event.head_commit.message }}'
@@ -191,21 +175,21 @@ pr-branch: 'auto-translate-${{ github.run_number }}'
 
 ### Automatic Reviewer Assignment
 
-```markdown
 Create a `.github/CODEOWNERS` file to automatically assign reviewers to translation PRs:
-```
 
 ```
-docs-en/ @TranslationTeam
-*.md @DocsTeam
+docs-en/ @translation-team
+*.md @docs-team
 ```
 
 ### Automatic Label Addition
 
-Adding Labels Using GitHub CLI:
+GitHub CLI를 사용하여 라벨 추가:
+
+Using the GitHub CLI to add labels:
 
 ```yaml
-- name: Add Labels to PR
+- name: Add labels to PR
   run: |
     gh pr edit ${{ steps.translate.outputs.pr-number }} \
       --add-label "documentation" \
@@ -217,13 +201,13 @@ Adding Labels Using GitHub CLI:
 
 ### Parallel Processing
 ```yaml
-# Process multiple files simultaneously
+# Process multiple files concurrently
 max-parallel-files: 3
 ```
 
 ### Cache Configuration
 ```yaml
-- name: Cache Ollama Models
+- name: Cache Ollama models
   uses: actions/cache@v4
   with:
     path: ~/.ollama
@@ -233,16 +217,16 @@ max-parallel-files: 3
 ### Conditional Translation
 ```yaml
 # Execute translation only under specific conditions
-skip-existing: true        # Skip files already translated
-min-file-size: 100         # Skip files smaller than 100 bytes
-max-file-size: 50000       # Skip files larger than 50KB
+skip-existing: true        # Skip files that are already translated
+min-file-size: 100        # Skip files smaller than 100 bytes
+max-file-size: 50000      # Skip files larger than 50KB
 ```
 
 ## Security Settings
 
 ### Token Management
 ```yaml
-# Use of Minimal Privilege Tokens
+# Use least privilege token
 permissions:
   contents: read
   pull-requests: write
@@ -252,7 +236,7 @@ github-token: ${{ secrets.GITHUB_TOKEN }}
 
 ### Private Repository
 ```yaml
-# Usage within a private repository
+# For use in a private repository
 - uses: actions/checkout@v4
   with:
     token: ${{ secrets.PAT_TOKEN }}  # Personal Access Token
@@ -260,7 +244,7 @@ github-token: ${{ secrets.GITHUB_TOKEN }}
 
 ## Multilingual Support
 
-### Translations into Multiple Languages
+### Multiple Language Translation
 
 ```yaml
 strategy:
@@ -270,9 +254,9 @@ strategy:
 steps:
 - uses: your-username/ollama-doc-translator@v1
   with:
-    target-dir: 'docs-${matrix.target-lang}'
+    target-dir: 'docs-${{ matrix.target-lang }}'
     model: 'exaone3.5:7.8b'
-    target-language: ${matrix.target-lang}
+    target-language: ${{ matrix.target-lang }}
 ```
 
 ## Notification Settings
@@ -284,7 +268,7 @@ steps:
   uses: 8398a7/action-slack@v3
   with:
     status: success
-    text: 'Translation complete: ${{ steps.translate.outputs.pr-url }}'
+    text: 'Document translation completed: ${{ steps.translate.outputs.pr-url }}'
 ```
 
 ### Email Notification
@@ -292,11 +276,11 @@ steps:
 - name: Send Email
   uses: dawidd6/action-send-mail@v3
   with:
-    subject: 'Translation Document Completed'
+    subject: 'Document Translation Complete'
     body: 'A new translation PR has been created.'
 ```
 
-## Debug Settings for Problem Solving
+## Debug Configuration for Problem Solving
 
 ### Detailed Logging
 ```yaml
@@ -308,7 +292,7 @@ steps:
 
 ### Artifact Storage
 ```yaml
-- name: Upload Translation Logs
+- name: Upload translation logs
   if: failure()
   uses: actions/upload-artifact@v4
   with:
@@ -316,6 +300,4 @@ steps:
     path: translation-*.log
 ```
 
-```
-You can configure the optimal translation workflow for your project by combining these settings.
-```
+You can combine these settings to create the optimal translation workflow for your project.
