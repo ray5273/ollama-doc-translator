@@ -151,10 +151,12 @@ def process_markdown_file(input_path, output_path):
         
         if CONTEXT_LENGTH > 0:
             # Calculate safe input length based on context size
-            if CONTEXT_LENGTH <= 8192:
-                safe_input_length = 2000  # Very small chunks for small context
+            if CONTEXT_LENGTH <= 4096:
+                safe_input_length = 800   # Tiny chunks for very small context
+            elif CONTEXT_LENGTH <= 8192:
+                safe_input_length = 1500  # Small chunks
             elif CONTEXT_LENGTH <= 32768:
-                safe_input_length = 6000  # Medium chunks
+                safe_input_length = 4000  # Medium chunks
             else:
                 # For large context, use proportional calculation
                 prompt_overhead = 500
