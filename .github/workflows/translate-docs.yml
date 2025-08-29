@@ -65,6 +65,7 @@ jobs:
       with:
         ollama-url: 'http://localhost:11434'
         model: 'exaone3.5:7.8b'
+        context-length: 8192
         source-dir: 'docs'
         target-dir: 'docs-en'
         file-pattern: '**/*.md'
@@ -72,7 +73,6 @@ jobs:
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
         ssl-verify: ${{ inputs.ssl_verify }}
-        context-length: ${{ inputs.context_length }}
         create-pr: true
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
