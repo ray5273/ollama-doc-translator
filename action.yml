@@ -81,6 +81,16 @@ inputs:
     description: 'Maximum number of retries for API calls'
     required: false
     default: '3'
+  
+  ssl-verify:
+    description: 'Enable SSL certificate verification'
+    required: false
+    default: 'true'
+  
+  enable-chunking:
+    description: 'Enable document chunking for translation'
+    required: false
+    default: 'false'
 
 outputs:
   translated-files:
@@ -159,5 +169,7 @@ runs:
         INPUT_SKIP_EXISTING: ${{ inputs.skip-existing }}
         INPUT_TEMPERATURE: ${{ inputs.temperature }}
         INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
+        INPUT_SSL_VERIFY: ${{ inputs.ssl-verify }}
+        INPUT_ENABLE_CHUNKING: ${{ inputs.enable-chunking }}
       run: |
         python "${{ github.action_path }}/entrypoint.py"

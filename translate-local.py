@@ -10,18 +10,18 @@ import requests
 import time
 from pathlib import Path
 
-def check_ollama_server():
+def check_ollama_server(ssl_verify=True):
     """Ollama 서버가 실행 중인지 확인"""
     try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        response = requests.get("http://localhost:11434/api/tags", timeout=5, verify=ssl_verify)
         return response.status_code == 200
     except:
         return False
 
-def check_model_available(model="exaone3.5:7.8b"):
+def check_model_available(model="exaone3.5:7.8b", ssl_verify=True):
     """지정된 모델이 사용 가능한지 확인"""
     try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        response = requests.get("http://localhost:11434/api/tags", timeout=5, verify=ssl_verify)
         if response.status_code == 200:
             models = response.json()
             model_names = [m['name'] for m in models.get('models', [])]
@@ -30,7 +30,7 @@ def check_model_available(model="exaone3.5:7.8b"):
     except:
         return False
 
-def translate_with_ollama(text, model="exaone3.5:7.8b"):
+def translate_with_ollama(text, model="exaone3.5:7.8b", ssl_verify=True):
     """Ollama API를 사용하여 텍스트를 번역"""
     url = "http://localhost:11434/api/generate"
     
@@ -53,7 +53,7 @@ def translate_with_ollama(text, model="exaone3.5:7.8b"):
     
     try:
         print(f"번역 중... (모델: {model})")
-        response = requests.post(url, json=payload, timeout=300)
+        response = requests.post(url, json=payload, timeout=300, verify=ssl_verify)
         response.raise_for_status()
         result = response.json()
         translated = result.get('response', '').strip()
@@ -67,27 +67,32 @@ def translate_with_ollama(text, model="exaone3.5:7.8b"):
         print(f"번역 오류: {e}")
         return text
 
-def process_markdown_file(input_path, output_path):
+def process_markdown_file(input_path, output_path, enable_chunking=True, ssl_verify=True):
     """마크다운 파일을 번역하여 저장"""
     print(f"\n번역 중: {input_path} -> {output_path}")
     
     with open(input_path, 'r', encoding='utf-8') as f:
         content = f.read()
     
-    # 큰 파일을 처리하기 위해 청크로 분할
-    chunks = content.split('\n\n')
-    translated_chunks = []
-    
-    for i, chunk in enumerate(chunks):
-        if chunk.strip():
-            print(f"청크 번역 중 {i+1}/{len(chunks)}")
-            translated_chunk = translate_with_ollama(chunk)
-            translated_chunks.append(translated_chunk)
-            time.sleep(1)  # API 속도 제한
-        else:
-            translated_chunks.append(chunk)
-    
-    translated_content = '\n\n'.join(translated_chunks)
+    if enable_chunking:
+        # 큰 파일을 처리하기 위해 청크로 분할
+        chunks = content.split('\n\n')
+        translated_chunks = []
+        
+        for i, chunk in enumerate(chunks):
+            if chunk.strip():
+                print(f"청크 번역 중 {i+1}/{len(chunks)}")
+                translated_chunk = translate_with_ollama(chunk, ssl_verify=ssl_verify)
+                translated_chunks.append(translated_chunk)
+                time.sleep(1)  # API 속도 제한
+            else:
+                translated_chunks.append(chunk)
+        
+        translated_content = '\n\n'.join(translated_chunks)
+    else:
+        # 전체 파일을 한 번에 처리
+        print("전체 파일을 한 번에 번역합니다...")
+        translated_content = translate_with_ollama(content, ssl_verify=ssl_verify)
     
     # 출력 디렉토리 생성
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,8 +106,14 @@ def process_markdown_file(input_path, output_path):
 def main():
     print("=== Ollama 문서 번역기 ===")
     
+    # 설정 옵션
+    ssl_verify = input("SSL 인증서 검증을 사용하시겠습니까? (y/n, 기본값: y): ").lower() not in ['n', 'no']
+    enable_chunking = input("문서 분할(청킹) 기능을 사용하시겠습니까? (y/n, 기본값: y): ").lower() not in ['n', 'no']
+    
+    print(f"설정: SSL 검증 = {ssl_verify}, 청킹 = {enable_chunking}")
+    
     # Ollama 서버 확인
-    if not check_ollama_server():
+    if not check_ollama_server(ssl_verify):
         print("❌ Ollama 서버가 실행되고 있지 않습니다.")
         print("다음 명령으로 Ollama를 시작하세요: ollama serve")
         return
@@ -111,7 +122,7 @@ def main():
     
     # 모델 확인
     model = "exaone3.5:7.8b"
-    if not check_model_available(model):
+    if not check_model_available(model, ssl_verify):
         print(f"❌ 모델 '{model}'을 찾을 수 없습니다.")
         print(f"다음 명령으로 모델을 다운로드하세요: ollama pull {model}")
         return
@@ -148,7 +159,7 @@ def main():
             print(f"⏭️  {md_file} 건너뛰기 (번역본이 최신)")
             continue
         
-        process_markdown_file(md_file, output_file)
+        process_markdown_file(md_file, output_file, enable_chunking, ssl_verify)
     
     print(f"\n🎉 모든 번역이 완료되었습니다!")
     print(f"번역된 파일들은 '{docs_en_dir}' 디렉토리에서 확인할 수 있습니다.")

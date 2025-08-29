@@ -29,6 +29,8 @@ GITHUB_API_URL = os.getenv('INPUT_GITHUB_API_URL', 'https://api.github.com')
 SKIP_EXISTING = os.getenv('INPUT_SKIP_EXISTING', 'true').lower() == 'true'
 TEMPERATURE = float(os.getenv('INPUT_TEMPERATURE', '0.3'))
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', '3'))
+SSL_VERIFY = os.getenv('INPUT_SSL_VERIFY', 'true').lower() == 'true'
+ENABLE_CHUNKING = os.getenv('INPUT_ENABLE_CHUNKING', 'true').lower() == 'true'
 
 def log(message):
     """Print log message with timestamp"""
@@ -65,7 +67,7 @@ def set_output(name, value):
 def check_ollama_server():
     """Check if Ollama server is running"""
     try:
-        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=10)
+        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=10, verify=SSL_VERIFY)
         return response.status_code == 200
     except Exception as e:
         return False
@@ -73,7 +75,7 @@ def check_ollama_server():
 def check_model_available():
     """Check if the specified model is available"""
     try:
-        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=10)
+        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=10, verify=SSL_VERIFY)
         if response.status_code == 200:
             models = response.json()
             model_names = [m['name'] for m in models.get('models', [])]
@@ -124,7 +126,7 @@ def translate_with_ollama(text, retries=0):
     
     try:
         response = requests.post(f"{OLLAMA_URL}/api/generate", 
-                               json=payload, timeout=300)
+                               json=payload, timeout=300, verify=SSL_VERIFY)
         response.raise_for_status()
         result = response.json()
         translated = result.get('response', '').strip()
@@ -147,29 +149,34 @@ def process_markdown_file(input_path, output_path):
         with open(input_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Split content into chunks for better processing
-        chunks = content.split('\n\n')
-        translated_chunks = []
-        
-        total_chunks = len([c for c in chunks if c.strip()])
-        processed_chunks = 0
-        
-        print(f"📊 Processing {total_chunks} chunks...", flush=True)
-        
-        for i, chunk in enumerate(chunks):
-            if chunk.strip():
-                processed_chunks += 1
-                print(f"🔄 [{processed_chunks}/{total_chunks}] Processing chunk...", end='', flush=True)
-                
-                translated_chunk = translate_with_ollama(chunk)
-                translated_chunks.append(translated_chunk)
-                
-                print(f" ✅ Done", flush=True)
-                time.sleep(0.5)  # Reduced rate limiting for better UX
-            else:
-                translated_chunks.append(chunk)
-        
-        translated_content = '\n\n'.join(translated_chunks)
+        if ENABLE_CHUNKING:
+            # Split content into chunks for better processing
+            chunks = content.split('\n\n')
+            translated_chunks = []
+            
+            total_chunks = len([c for c in chunks if c.strip()])
+            processed_chunks = 0
+            
+            print(f"📊 Processing {total_chunks} chunks...", flush=True)
+            
+            for i, chunk in enumerate(chunks):
+                if chunk.strip():
+                    processed_chunks += 1
+                    print(f"🔄 [{processed_chunks}/{total_chunks}] Processing chunk...", end='', flush=True)
+                    
+                    translated_chunk = translate_with_ollama(chunk)
+                    translated_chunks.append(translated_chunk)
+                    
+                    print(f" ✅ Done", flush=True)
+                    time.sleep(0.5)  # Reduced rate limiting for better UX
+                else:
+                    translated_chunks.append(chunk)
+            
+            translated_content = '\n\n'.join(translated_chunks)
+        else:
+            # Process entire file at once
+            print(f"📄 Processing entire file as one chunk...", flush=True)
+            translated_content = translate_with_ollama(content)
         
         # Create output directory
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -333,7 +340,7 @@ Please review the translations for accuracy and merge if they look good.
         
         try:
             log(f"Creating PR with base branch: {BASE_BRANCH}")
-            response = requests.post(api_url, json=pr_data, headers=headers)
+            response = requests.post(api_url, json=pr_data, headers=headers, verify=SSL_VERIFY)
             if response.status_code == 201:
                 pr_info = response.json()
                 pr_url = pr_info['html_url']
@@ -349,7 +356,7 @@ Please review the translations for accuracy and merge if they look good.
                     for fallback_branch in ['main', 'master']:
                         log(f"Retrying with base branch: {fallback_branch}")
                         pr_data["base"] = fallback_branch
-                        response = requests.post(api_url, json=pr_data, headers=headers)
+                        response = requests.post(api_url, json=pr_data, headers=headers, verify=SSL_VERIFY)
                         if response.status_code == 201:
                             pr_info = response.json()
                             pr_url = pr_info['html_url']

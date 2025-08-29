@@ -16,6 +16,16 @@ on:
         required: false
         default: false
         type: boolean
+      ssl_verify:
+        description: 'Enable SSL certificate verification'
+        required: false
+        default: true
+        type: boolean
+      enable_chunking:
+        description: 'Enable document chunking for translation'
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: write
   pull-requests: write
@@ -66,6 +76,8 @@ jobs:
         temperature: 0
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
+        ssl-verify: ${{ inputs.ssl_verify || true }}
+        enable-chunking: ${{ inputs.enable_chunking || true }}
         create-pr: true
         pr-title: '📚 Update English documentation translations'
         pr-branch: 'auto-translate-${{ github.run_number }}'
