@@ -59,7 +59,7 @@ jobs:
       uses: ./  # Use the local action
       with:
         ollama-url: 'http://localhost:11434'
-        model: 'solar:10.7b'
+        model: 'gemma3:12b'
         source-dir: 'docs'
         target-dir: 'docs-en'
         file-pattern: '**/*.md'
