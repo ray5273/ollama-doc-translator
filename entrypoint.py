@@ -80,39 +80,37 @@ def token_length(text):
 
 
 def split_markdown_by_tokens(text, max_tokens):
-    """Split markdown text into chunks within token limit."""
-    paragraphs = text.split('\n\n')
-    chunks = []
-    current = []
-    current_tokens = 0
+    """Split markdown text into chunks within token limit.
 
-    for paragraph in paragraphs:
-        p_tokens = token_length(paragraph)
-        if p_tokens > max_tokens:
-            lines = paragraph.split('\n')
-            for line in lines:
-                l_tokens = token_length(line)
-                if current_tokens + l_tokens + 1 > max_tokens:
-                    if current:
-                        chunks.append('\n'.join(current))
-                    current = [line]
-                    current_tokens = l_tokens
-                else:
-                    current.append(line)
-                    current_tokens += l_tokens + 1
-        elif current_tokens + p_tokens + 2 <= max_tokens:
-            current.append(paragraph)
-            current_tokens += p_tokens + 2
-        else:
-            if current:
-                chunks.append('\n\n'.join(current))
-            current = [paragraph]
-            current_tokens = p_tokens
+    The previous implementation repeatedly tokenized each paragraph/line,
+    which could be slow on large documents. This version encodes the
+    document once and slices the token list, trimming at paragraph
+    boundaries when possible.
+    """
+    if _TOKEN_ENCODING:
+        tokens = _TOKEN_ENCODING.encode(text)
+        if len(tokens) <= max_tokens:
+            return [text]
 
-    if current:
-        chunks.append('\n\n'.join(current))
+        chunks = []
+        start = 0
+        while start < len(tokens):
+            end = min(start + max_tokens, len(tokens))
+            chunk = _TOKEN_ENCODING.decode(tokens[start:end])
 
-    return chunks
+            if end < len(tokens):
+                cut = chunk.rfind("\n\n")
+                if cut > 0:
+                    chunk = chunk[:cut]
+                    end = start + len(_TOKEN_ENCODING.encode(chunk))
+
+            chunks.append(chunk)
+            start = end
+        return chunks
+
+    # Fallback: approximate using character length when tiktoken is missing
+    approx = max_tokens * 4
+    return [text[i : i + approx] for i in range(0, len(text), approx)]
 
 def check_ollama_server():
     """Check if Ollama server is running"""
