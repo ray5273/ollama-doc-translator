@@ -107,7 +107,13 @@ def translate_with_ollama(text, retries=0):
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     
-    prompt = f"""다음 한국어 텍스트를 영어로 번역해주세요. 마크다운 형식과 구조를 정확히 유지하세요. 번역된 텍스트만 반환하고 추가 설명은 하지 마세요.
+    prompt = f"""다음 한국어 텍스트를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
+
+- 마크다운 형식과 구조를 정확히 유지하세요 (Strictly preserve Markdown structure and spacing)
+- 코드 블록, 인라인 코드, 링크, URL, 이미지 경로, 수식, Mermaid, HTML 주석은 번역하지 마세요 (Do NOT translate code blocks, inline code, links, URLs, image paths, math, Mermaid, or HTML comments)
+- 입력이 이미 영어이거나 한국어가 없다면 그대로 반환하세요 (If the input is already English or contains no Korean, return it verbatim)
+- 목록/테이블 구조를 그대로 유지하세요. YAML 프론트 매터가 있다면 그대로 유지하세요 (Keep lists/tables intact. Keep YAML front matter intact if present)
+- 번역된 텍스트만 반환하고 추가 설명은 하지 마세요
 
 한국어 텍스트:
 {text}
