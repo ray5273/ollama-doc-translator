@@ -14,7 +14,7 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 - **Auto PR Creation**: Automatically creates pull requests with translations
 - **Smart Skipping**: Skip files that are already translated and up-to-date
 - **Retry Logic**: Built-in retry mechanism for robust API calls
-- **Token-aware Chunking**: Splits long documents by token length to avoid truncation
+- **Token-aware Chunking**: Splits long documents by token length to avoid truncation (with a safe character-based fallback when tiktoken isn't available)
 
 ## 📋 Prerequisites
 

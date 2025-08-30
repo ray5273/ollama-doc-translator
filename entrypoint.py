@@ -76,7 +76,8 @@ def token_length(text):
     """Return token length using tiktoken if available."""
     if _TOKEN_ENCODING:
         return len(_TOKEN_ENCODING.encode(text))
-    return max(1, len(text) // 4)
+    # Conservative fallback: assume each character is a token
+    return len(text)
 
 
 def split_markdown_by_tokens(text, max_tokens):
@@ -108,9 +109,22 @@ def split_markdown_by_tokens(text, max_tokens):
             start = end
         return chunks
 
-    # Fallback: approximate using character length when tiktoken is missing
-    approx = max_tokens * 4
-    return [text[i : i + approx] for i in range(0, len(text), approx)]
+    # Fallback: treat each character as a token and split accordingly
+    approx = max_tokens
+    chunks = []
+    start = 0
+    text_len = len(text)
+    while start < text_len:
+        end = min(start + approx, text_len)
+        chunk = text[start:end]
+        if end < text_len:
+            cut = chunk.rfind("\n\n")
+            if cut > 0:
+                chunk = chunk[:cut]
+                end = start + len(chunk)
+        chunks.append(chunk)
+        start = end
+    return chunks
 
 def check_ollama_server():
     """Check if Ollama server is running"""
