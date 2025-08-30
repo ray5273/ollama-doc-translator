@@ -107,18 +107,21 @@ def translate_with_ollama(text, retries=0):
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     
-    prompt = f"""다음 한국어 텍스트를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
+    prompt = f"""다음 한국어 마크다운 문서를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
 
-- 마크다운 형식과 구조를 정확히 유지하세요 (Strictly preserve Markdown structure and spacing)
-- 코드 블록, 인라인 코드, 링크, URL, 이미지 경로, 수식, Mermaid, HTML 주석은 번역하지 마세요 (Do NOT translate code blocks, inline code, links, URLs, image paths, math, Mermaid, or HTML comments)
-- 입력이 이미 영어이거나 한국어가 없다면 그대로 반환하세요 (If the input is already English or contains no Korean, return it verbatim)
-- 목록/테이블 구조를 그대로 유지하세요. YAML 프론트 매터가 있다면 그대로 유지하세요 (Keep lists/tables intact. Keep YAML front matter intact if present)
-- 번역된 텍스트만 반환하고 추가 설명은 하지 마세요
+- 마크다운 형식과 구조를 절대 변경하지 마세요
+- 코드 블록, 인라인 코드(`...`), 링크, URL, 이미지 경로, 수식, Mermaid, HTML 주석은 절대 번역하거나 수정하지 마세요
+- 코드 블록은 ```python, ```js 등 언어 태그 포함 그대로 유지하세요
+- 목록, 테이블, YAML 프론트매터의 구조와 들여쓰기를 그대로 유지하세요
+- 입력이 이미 영어이거나 한국어가 없다면 입력 그대로 반환하세요
+- 같은 용어는 문서 전체에서 일관되게 번역하세요
+- 불필요한 추가 설명, 주석, “Here is translation:” 같은 문구를 출력하지 마세요
+- 문장이 잘린 경우, 불필요하게 추측하지 말고 잘린 부분까지만 충실히 번역하세요
 
-한국어 텍스트:
+한국어 마크다운 문서:
 {text}
 
-영어 번역:"""
+영어 마크다운 문서:"""
     
     payload = {
         "model": MODEL,
@@ -158,11 +161,13 @@ def process_markdown_file(input_path, output_path):
         if CONTEXT_LENGTH > 0:
             # Calculate safe input length based on context size
             if CONTEXT_LENGTH <= 4096:
-                safe_input_length = 800   # Tiny chunks for very small context
+                safe_input_length = 1500   # Tiny chunks for very small context
             elif CONTEXT_LENGTH <= 8192:
-                safe_input_length = 1500  # Small chunks
+                safe_input_length = 2500  # Small chunks
+            elif CONTEXT_LENGTH <= 16384:
+                safe_input_length = 6500  # Medium chunks
             elif CONTEXT_LENGTH <= 32768:
-                safe_input_length = 4000  # Medium chunks
+                safe_input_length = 10000  # Medium chunks
             else:
                 # For large context, use proportional calculation
                 prompt_overhead = 500
