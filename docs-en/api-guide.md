@@ -2,26 +2,22 @@
 
 ## Overview
 
-This document serves as a guide on how to perform text translation using the Ollama API.
+This document provides a guide on how to perform text translation using the Ollama API.
 
-## Basic Settings
+## Basic Setup
 
-### 1. Installing Ollama
+### 1. Ollama Installation
 
-First, install Ollama on the system:
+First, install Ollama on your system:
 
 ```bash
 # Windows
 winget install Ollama.Ollama
-```
 
 # macOS
-```bash
 brew install ollama
-```
 
 # Linux
-```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
@@ -30,10 +26,10 @@ curl -fsSL https://ollama.com/install.sh | sh
 Download the exaone3.5:7.8b model for translation:
 
 ```bash
-git pull origin exaone3.5:7.8b
+ollama pull exaone3.5:7.8b
 ```
 
-## How to Use the API
+## API Usage
 
 ### Basic Request
 
@@ -42,7 +38,7 @@ curl -X POST http://localhost:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{
     "model": "exaone3.5:7.8b",
-    "prompt": "Translate the following Korean text into English: 안녕하세요",
+    "prompt": "Translate the following Korean text to English: 안녕하세요",
     "stream": false
   }'
 ```
@@ -60,20 +56,12 @@ curl -X POST http://localhost:11434/api/generate \
 
 ## Tips for Improving Translation Quality
 
-Please provide the Korean text you would like translated while adhering to the guidelines regarding context, specialized terminology handling, and consistency. Here is a template based on your request:
-
-**Korean Text:**
-[Insert Korean Text Here]
-
-**English Translation:**
-[Insert Translated Text Here]
-
-If you provide the specific text, I can apply this structure directly to your content.
+1. **Provide Context**: Include the context of the text to be translated.
+2. **Handle Technical Terms**: Define technical terms separately if necessary.
+3. **Maintain Consistency**: Use consistent translations for identical terms throughout the document.
 
 ## Important Notes
 
-```
-- Operates only in local environments
-- Does not require internet connection
-- Requires sufficient memory depending on model size
-```
+- Operates only in local environments.
+- No internet connection required.
+- Sufficient memory may be needed depending on the model size.

@@ -13,6 +13,13 @@ import glob
 from pathlib import Path
 import subprocess
 
+try:
+    import tiktoken
+    _TOKEN_ENCODING = tiktoken.get_encoding("cl100k_base")
+except Exception:  # pragma: no cover - optional dependency
+    tiktoken = None
+    _TOKEN_ENCODING = None
+
 # Action inputs from environment variables
 OLLAMA_URL = os.getenv('INPUT_OLLAMA_URL', 'http://localhost:11434')
 MODEL = os.getenv('INPUT_MODEL', 'exaone3.5:7.8b')
@@ -63,6 +70,49 @@ def set_output(name, value):
         # Fallback to older method (escape newlines)
         escaped_value = str(value).replace('\n', '%0A')
         print(f"::set-output name={name}::{escaped_value}")
+
+
+def token_length(text):
+    """Return token length using tiktoken if available."""
+    if _TOKEN_ENCODING:
+        return len(_TOKEN_ENCODING.encode(text))
+    return max(1, len(text) // 4)
+
+
+def split_markdown_by_tokens(text, max_tokens):
+    """Split markdown text into chunks within token limit."""
+    paragraphs = text.split('\n\n')
+    chunks = []
+    current = []
+    current_tokens = 0
+
+    for paragraph in paragraphs:
+        p_tokens = token_length(paragraph)
+        if p_tokens > max_tokens:
+            lines = paragraph.split('\n')
+            for line in lines:
+                l_tokens = token_length(line)
+                if current_tokens + l_tokens + 1 > max_tokens:
+                    if current:
+                        chunks.append('\n'.join(current))
+                    current = [line]
+                    current_tokens = l_tokens
+                else:
+                    current.append(line)
+                    current_tokens += l_tokens + 1
+        elif current_tokens + p_tokens + 2 <= max_tokens:
+            current.append(paragraph)
+            current_tokens += p_tokens + 2
+        else:
+            if current:
+                chunks.append('\n\n'.join(current))
+            current = [paragraph]
+            current_tokens = p_tokens
+
+    if current:
+        chunks.append('\n\n'.join(current))
+
+    return chunks
 
 def check_ollama_server():
     """Check if Ollama server is running"""
@@ -159,89 +209,51 @@ def process_markdown_file(input_path, output_path):
             content = f.read()
         
         if CONTEXT_LENGTH > 0:
-            # Calculate safe input length based on context size
-            if CONTEXT_LENGTH <= 4096:
-                safe_input_length = 1500   # Tiny chunks for very small context
-            elif CONTEXT_LENGTH <= 8192:
-                safe_input_length = 2500  # Small chunks
-            elif CONTEXT_LENGTH <= 16384:
-                safe_input_length = 6500  # Medium chunks
-            elif CONTEXT_LENGTH <= 32768:
-                safe_input_length = 14000  # Medium chunks
-            else:
-                # For large context, use proportional calculation
-                prompt_overhead = 500
-                output_reserve = CONTEXT_LENGTH // 2
-                safe_input_tokens = CONTEXT_LENGTH - prompt_overhead - output_reserve
-                safe_input_length = safe_input_tokens * 2
-            
-            if len(content) > safe_input_length:
-                # Split content into chunks based on safe input length
-                chunks = []
-                current_chunk = ""
-                paragraphs = content.split('\n\n')
-                
-                for paragraph in paragraphs:
-                    # If paragraph itself is too long, split it further
-                    if len(paragraph) > safe_input_length:
-                        # Save current chunk if it exists
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                            current_chunk = ""
-                        
-                        # Split long paragraph by sentences or lines
-                        lines = paragraph.split('\n')
-                        temp_chunk = ""
-                        for line in lines:
-                            if len(temp_chunk) + len(line) + 1 <= safe_input_length:
-                                if temp_chunk:
-                                    temp_chunk += '\n' + line
-                                else:
-                                    temp_chunk = line
-                            else:
-                                if temp_chunk:
-                                    chunks.append(temp_chunk)
-                                temp_chunk = line
-                        if temp_chunk:
-                            current_chunk = temp_chunk
-                    elif len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
-                        if current_chunk:
-                            current_chunk += '\n\n' + paragraph
-                        else:
-                            current_chunk = paragraph
-                    else:
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                        current_chunk = paragraph
-                
-                if current_chunk:
-                    chunks.append(current_chunk)
-                
+            # Determine safe token count for each chunk
+            prompt_overhead = 500
+            output_reserve = CONTEXT_LENGTH // 2
+            safe_input_tokens = max(1, CONTEXT_LENGTH - prompt_overhead - output_reserve)
+
+            if token_length(content) > safe_input_tokens:
+                chunks = split_markdown_by_tokens(content, safe_input_tokens)
                 translated_chunks = []
                 total_chunks = len(chunks)
-                
-                print(f"📊 Processing {total_chunks} chunks (safe input: {safe_input_length}, context: {CONTEXT_LENGTH})...", flush=True)
-                
+
+                print(
+                    f"📊 Processing {total_chunks} chunks (token limit: {safe_input_tokens}, context: {CONTEXT_LENGTH})...",
+                    flush=True,
+                )
+
                 for i, chunk in enumerate(chunks):
-                    print(f"🔄 [{i+1}/{total_chunks}] Processing chunk (len: {len(chunk)})...", end='', flush=True)
-                    
+                    print(
+                        f"🔄 [{i+1}/{total_chunks}] Processing chunk (tokens: {token_length(chunk)})...",
+                        end='',
+                        flush=True,
+                    )
                     translated_chunk = translate_with_ollama(chunk)
                     if translated_chunk:
                         translated_chunks.append(translated_chunk)
-                        print(f" ✅ Done (result len: {len(translated_chunk)})", flush=True)
+                        print(
+                            f" ✅ Done (result tokens: {token_length(translated_chunk)})",
+                            flush=True,
+                        )
                     else:
-                        print(f" ⚠️ Empty result", flush=True)
+                        print(" ⚠️ Empty result", flush=True)
                     time.sleep(0.5)
-                
+
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
                 translated_content = '\n\n'.join(translated_chunks)
             else:
-                # File is small enough, process as single chunk
-                print(f"📄 Processing entire file as one chunk (size: {len(content)}, safe limit: {safe_input_length})...", flush=True)
+                print(
+                    f"📄 Processing entire file as one chunk (tokens: {token_length(content)}, limit: {safe_input_tokens})...",
+                    flush=True,
+                )
                 translated_content = translate_with_ollama(content)
         else:
-            # No context length limit, process entire file
-            print(f"📄 Processing entire file as one chunk (no context limit)...", flush=True)
+            print(
+                f"📄 Processing entire file as one chunk (no context limit)...",
+                flush=True,
+            )
             translated_content = translate_with_ollama(content)
         
         # Create output directory
