@@ -12,6 +12,15 @@ import time
 import glob
 from pathlib import Path
 import subprocess
+from token_utils import (
+    estimate_token_count,
+    calculate_safe_chunk_size,
+    protect_markdown_elements,
+    restore_protected_elements,
+    split_markdown_content,
+    normalize_chunk_boundaries,
+    join_translated_chunks
+)
 
 # Action inputs from environment variables
 OLLAMA_URL = os.getenv('INPUT_OLLAMA_URL', 'http://localhost:11434')
@@ -101,11 +110,17 @@ def pull_model():
         log(f"Failed to pull model: {str(e)}")
         return False
 
-def translate_with_ollama(text, retries=0):
-    """Translate text using Ollama API with retry logic"""
+def translate_with_ollama(text, retries=0, max_tokens=None):
+    """Translate text using Ollama API with retry logic and enhanced options"""
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
-        return text
+        return text, 0, 0
+    
+    # 보호된 요소들 처리
+    protected_text, protected_elements = protect_markdown_elements(text)
+    
+    # 입력 토큰 수 계산
+    input_tokens = estimate_token_count(protected_text)
     
     prompt = f"""다음 한국어 텍스트를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
 
@@ -116,18 +131,27 @@ def translate_with_ollama(text, retries=0):
 - 번역된 텍스트만 반환하고 추가 설명은 하지 마세요
 
 한국어 텍스트:
-{text}
+{protected_text}
 
 영어 번역:"""
+    
+    # 향상된 옵션 설정
+    options = {
+        "temperature": max(0.1, min(TEMPERATURE, 0.3)),  # 0.1-0.3 범위로 제한
+        "top_p": 0.9,
+        "repeat_penalty": 1.1,
+        "num_predict": -1  # 무제한 생성
+    }
+    
+    # 컨텍스트 길이 설정
+    if CONTEXT_LENGTH > 0:
+        options["num_ctx"] = CONTEXT_LENGTH
     
     payload = {
         "model": MODEL,
         "prompt": prompt,
         "stream": False,
-        "options": {
-            "temperature": TEMPERATURE,
-            "top_p": 0.9
-        }
+        "options": options
     }
     
     try:
@@ -141,108 +165,112 @@ def translate_with_ollama(text, retries=0):
         if translated.startswith('영어 번역:'):
             translated = translated.replace('영어 번역:', '').strip()
         
-        return translated
+        # 보호된 요소들 복원
+        translated = restore_protected_elements(translated, protected_elements)
+        
+        # 출력 토큰 수 계산
+        output_tokens = estimate_token_count(translated)
+        
+        return translated, input_tokens, output_tokens
     except Exception as e:
         print(f"⚠️  Translation error (attempt {retries + 1}): {e}", flush=True)
-        time.sleep(2 ** retries)  # Exponential backoff
-        return translate_with_ollama(text, retries + 1)
+        if retries < MAX_RETRIES - 1:
+            time.sleep(2 ** retries)  # Exponential backoff
+            return translate_with_ollama(text, retries + 1, max_tokens)
+        else:
+            return text, input_tokens, 0
 
 def process_markdown_file(input_path, output_path):
-    """Process a single markdown file"""
+    """Process a single markdown file with enhanced token-based chunking"""
     print(f"\n📝 Starting translation: {input_path} -> {output_path}", flush=True)
     
     try:
         with open(input_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
+        # 전체 문서의 토큰 수 계산
+        total_tokens = estimate_token_count(content)
+        print(f"📊 Document tokens: {total_tokens}", flush=True)
+        
         if CONTEXT_LENGTH > 0:
-            # Calculate safe input length based on context size
-            if CONTEXT_LENGTH <= 4096:
-                safe_input_length = 800   # Tiny chunks for very small context
-            elif CONTEXT_LENGTH <= 8192:
-                safe_input_length = 1500  # Small chunks
-            elif CONTEXT_LENGTH <= 32768:
-                safe_input_length = 4000  # Medium chunks
-            else:
-                # For large context, use proportional calculation
-                prompt_overhead = 500
-                output_reserve = CONTEXT_LENGTH // 2
-                safe_input_tokens = CONTEXT_LENGTH - prompt_overhead - output_reserve
-                safe_input_length = safe_input_tokens * 2
+            # 안전한 청크 크기 계산 (토큰 기반)
+            max_chunk_tokens = calculate_safe_chunk_size(CONTEXT_LENGTH, TEMPERATURE)
             
-            if len(content) > safe_input_length:
-                # Split content into chunks based on safe input length
-                chunks = []
-                current_chunk = ""
-                paragraphs = content.split('\n\n')
-                
-                for paragraph in paragraphs:
-                    # If paragraph itself is too long, split it further
-                    if len(paragraph) > safe_input_length:
-                        # Save current chunk if it exists
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                            current_chunk = ""
-                        
-                        # Split long paragraph by sentences or lines
-                        lines = paragraph.split('\n')
-                        temp_chunk = ""
-                        for line in lines:
-                            if len(temp_chunk) + len(line) + 1 <= safe_input_length:
-                                if temp_chunk:
-                                    temp_chunk += '\n' + line
-                                else:
-                                    temp_chunk = line
-                            else:
-                                if temp_chunk:
-                                    chunks.append(temp_chunk)
-                                temp_chunk = line
-                        if temp_chunk:
-                            current_chunk = temp_chunk
-                    elif len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
-                        if current_chunk:
-                            current_chunk += '\n\n' + paragraph
-                        else:
-                            current_chunk = paragraph
-                    else:
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                        current_chunk = paragraph
-                
-                if current_chunk:
-                    chunks.append(current_chunk)
+            if total_tokens > max_chunk_tokens:
+                # 스마트 분할 실행
+                print(f"📋 Splitting into chunks (max tokens per chunk: {max_chunk_tokens})", flush=True)
+                chunks = split_markdown_content(content, max_chunk_tokens)
+                chunks = normalize_chunk_boundaries(chunks)
                 
                 translated_chunks = []
                 total_chunks = len(chunks)
+                total_input_tokens = 0
+                total_output_tokens = 0
                 
-                print(f"📊 Processing {total_chunks} chunks (safe input: {safe_input_length}, context: {CONTEXT_LENGTH})...", flush=True)
+                print(f"📊 Processing {total_chunks} chunks (context: {CONTEXT_LENGTH})...", flush=True)
                 
                 for i, chunk in enumerate(chunks):
-                    print(f"🔄 [{i+1}/{total_chunks}] Processing chunk (len: {len(chunk)})...", end='', flush=True)
+                    chunk_tokens = estimate_token_count(chunk)
+                    print(f"🔄 [{i+1}/{total_chunks}] Processing chunk ({chunk_tokens} tokens)...", end='', flush=True)
                     
-                    translated_chunk = translate_with_ollama(chunk)
-                    if translated_chunk:
-                        translated_chunks.append(translated_chunk)
-                        print(f" ✅ Done (result len: {len(translated_chunk)})", flush=True)
-                    else:
-                        print(f" ⚠️ Empty result", flush=True)
-                    time.sleep(0.5)
+                    # 실패 시 청크 분할 재시도 로직
+                    max_retries = 3
+                    current_chunk = chunk
+                    
+                    for retry in range(max_retries):
+                        try:
+                            translated_chunk, input_tokens, output_tokens = translate_with_ollama(
+                                current_chunk, max_tokens=max_chunk_tokens
+                            )
+                            
+                            if translated_chunk and translated_chunk != current_chunk:
+                                translated_chunks.append(translated_chunk)
+                                total_input_tokens += input_tokens
+                                total_output_tokens += output_tokens
+                                print(f" ✅ Done ({input_tokens}→{output_tokens} tokens)", flush=True)
+                                break
+                            elif retry < max_retries - 1:
+                                # 청크가 너무 크면 반으로 분할하여 재시도
+                                print(f" ⚠️ Chunk too large, splitting...", end='', flush=True)
+                                sub_chunks = split_markdown_content(current_chunk, max_chunk_tokens // 2)
+                                if len(sub_chunks) > 1:
+                                    # 첫 번째 서브청크로 재시도
+                                    current_chunk = sub_chunks[0]
+                                    # 나머지는 다음에 처리하기 위해 청크 목록에 삽입
+                                    for j, sub_chunk in enumerate(sub_chunks[1:]):
+                                        chunks.insert(i + j + 2, sub_chunk)
+                                        total_chunks += 1
+                                else:
+                                    print(f" ❌ Cannot split further", flush=True)
+                                    break
+                            else:
+                                print(f" ❌ Failed after {max_retries} retries", flush=True)
+                                translated_chunks.append(current_chunk)  # 원본 사용
+                        except Exception as e:
+                            print(f" ⚠️ Error in chunk {i+1}: {e}", flush=True)
+                            if retry < max_retries - 1:
+                                time.sleep(2 ** retry)  # 지수 백오프
+                            else:
+                                translated_chunks.append(current_chunk)  # 원본 사용
                 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
-                translated_content = '\n\n'.join(translated_chunks)
+                print(f"📊 Total tokens processed: {total_input_tokens} → {total_output_tokens}", flush=True)
+                translated_content = join_translated_chunks(translated_chunks)
             else:
-                # File is small enough, process as single chunk
-                print(f"📄 Processing entire file as one chunk (size: {len(content)}, safe limit: {safe_input_length})...", flush=True)
-                translated_content = translate_with_ollama(content)
+                # 파일이 작아서 한 번에 처리 가능
+                print(f"📄 Processing entire file as one chunk ({total_tokens} tokens, limit: {max_chunk_tokens})...", flush=True)
+                translated_content, input_tokens, output_tokens = translate_with_ollama(content)
+                print(f"📊 Tokens processed: {input_tokens} → {output_tokens}", flush=True)
         else:
-            # No context length limit, process entire file
-            print(f"📄 Processing entire file as one chunk (no context limit)...", flush=True)
-            translated_content = translate_with_ollama(content)
+            # 컨텍스트 길이 제한 없음
+            print(f"📄 Processing entire file as one chunk (no context limit, {total_tokens} tokens)...", flush=True)
+            translated_content, input_tokens, output_tokens = translate_with_ollama(content)
+            print(f"📊 Tokens processed: {input_tokens} → {output_tokens}", flush=True)
         
-        # Create output directory
+        # 출력 디렉토리 생성
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Write translated content
+        # 번역된 내용 저장
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(translated_content)
         

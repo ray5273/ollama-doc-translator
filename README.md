@@ -10,10 +10,14 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 
 - **Automatic Translation**: Translate Korean markdown files to English automatically
 - **AI-Powered**: Uses Exaone3.5:7.8b model for high-quality translations  
-- **Customizable**: Configure source/target directories, models, and translation parameters
+- **Token-Based Chunking**: Advanced token-aware content splitting for optimal processing
+- **Smart Markdown Parsing**: Preserves code blocks, tables, math, and formatting structure
+- **Element Protection**: Automatic protection of links, URLs, code, and special markdown elements
+- **Intelligent Retry Logic**: Chunk-level failure recovery with exponential backoff
+- **Context-Aware Processing**: Dynamic chunk sizing based on model context length
 - **Auto PR Creation**: Automatically creates pull requests with translations
 - **Smart Skipping**: Skip files that are already translated and up-to-date
-- **Retry Logic**: Built-in retry mechanism for robust API calls
+- **Comprehensive Logging**: Token count tracking and detailed processing metrics
 
 ## 📋 Prerequisites
 
@@ -80,6 +84,8 @@ jobs:
 | `file-pattern` | File pattern to match (glob) | No | `**/*.md` |
 | `temperature` | Model temperature (0.0-1.0) | No | `0.3` |
 | `max-retries` | Maximum API call retries | No | `3` |
+| `context-length` | Model context length in tokens | No | `32768` |
+| `ssl-verify` | Verify SSL certificates | No | `true` |
 | `skip-existing` | Skip existing newer files | No | `true` |
 | `create-pr` | Create pull request | No | `true` |
 | `pr-title` | Pull request title | No | `Update English documentation translations` |
@@ -95,6 +101,35 @@ jobs:
 | `skipped-files` | Number of files skipped |
 | `pr-url` | Pull request URL (if created) |
 | `pr-number` | Pull request number (if created) |
+
+## ⚙️ Technical Details
+
+### Token-Based Processing
+
+The translator uses advanced token-based chunking instead of simple character counting:
+
+- **Smart Token Estimation**: Accounts for Korean vs English token density
+- **Dynamic Chunk Sizing**: Automatically adjusts based on model context length
+- **Proportional Reserves**: Reserves space for prompts and output expansion
+- **Safe Margins**: Includes safety buffers to prevent context overflow
+
+### Markdown Structure Preservation
+
+Advanced markdown parsing ensures content integrity:
+
+- **Element Protection**: Code blocks, math, tables, and links are protected during translation
+- **Structure-Aware Splitting**: Splits at logical boundaries (headings, paragraphs)
+- **Boundary Normalization**: Prevents formatting artifacts at chunk boundaries
+- **Context Preservation**: Maintains YAML front matter and document structure
+
+### Intelligent Processing Pipeline
+
+1. **Document Analysis**: Token counting and structure detection
+2. **Element Protection**: Critical elements are tokenized and protected
+3. **Smart Chunking**: Content split using markdown-aware algorithms  
+4. **Parallel Translation**: Each chunk translated with context awareness
+5. **Failure Recovery**: Automatic retry with chunk subdivision on failures
+6. **Content Reconstruction**: Protected elements restored and chunks rejoined
 
 ## 🔧 Setup Instructions
 
