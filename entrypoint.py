@@ -106,23 +106,22 @@ def translate_with_ollama(text, retries=0):
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
-    
-    prompt = f"""다음 한국어 마크다운 문서를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
 
-- 마크다운 형식과 구조를 절대 변경하지 마세요
-- 코드 블록, 인라인 코드(`...`), 링크, URL, 이미지 경로, 수식, Mermaid, HTML 주석은 절대 번역하거나 수정하지 마세요
-- 코드 블록은 ```python, ```js 등 언어 태그 포함 그대로 유지하세요
-- 목록, 테이블, YAML 프론트매터의 구조와 들여쓰기를 그대로 유지하세요
-- 입력이 이미 영어이거나 한국어가 없다면 입력 그대로 반환하세요
-- 같은 용어는 문서 전체에서 일관되게 번역하세요
-- 불필요한 추가 설명, 주석, “Here is translation:” 같은 문구를 출력하지 마세요
-- 문장이 잘린 경우, 불필요하게 추측하지 말고 잘린 부분까지만 충실히 번역하세요
+    prompt = f"""Please translate the following Korean markdown document into English. Strictly follow these instructions:
 
-한국어 마크다운 문서:
+- Do not change the markdown format and structure.
+- **Never translate or modify code blocks (including language tags like ```python), inline code (`...`), links, URLs, image paths, mathematical formulas, Mermaid diagrams, and HTML comments.**
+- Maintain the structure and indentation of lists, tables, and YAML frontmatter.
+- If the input is already in English or contains no Korean, return the input as is.
+- Translate the same terms consistently throughout the document.
+- Do not output unnecessary additional explanations, comments, or phrases like "Here is the translation:".
+- If a sentence is cut off, translate it faithfully up to the cut-off point without unnecessary speculation.
+
+Korean markdown document to translate:
 {text}
 
-영어 마크다운 문서:"""
-    
+English markdown document:"""
+
     payload = {
         "model": MODEL,
         "prompt": prompt,
@@ -132,18 +131,17 @@ def translate_with_ollama(text, retries=0):
             "top_p": 0.9
         }
     }
-    
+
     try:
-        response = requests.post(f"{OLLAMA_URL}/api/generate", 
-                               json=payload, timeout=300, verify=SSL_VERIFY)
+        response = requests.post(f"{OLLAMA_URL}/api/generate",
+                                 json=payload, timeout=900, verify=SSL_VERIFY)
         response.raise_for_status()
         result = response.json()
         translated = result.get('response', '').strip()
-        
-        # Clean up response if needed
-        if translated.startswith('영어 번역:'):
-            translated = translated.replace('영어 번역:', '').strip()
-        
+
+        if translated.startswith('English markdown document:'):
+            translated = translated.replace('English markdown document:', '').strip()
+
         return translated
     except Exception as e:
         print(f"⚠️  Translation error (attempt {retries + 1}): {e}", flush=True)
@@ -151,109 +149,134 @@ def translate_with_ollama(text, retries=0):
         return translate_with_ollama(text, retries + 1)
 
 def process_markdown_file(input_path, output_path):
-    """Process a single markdown file"""
+    """Process a single markdown file with overlapping chunks"""
     print(f"\n📝 Starting translation: {input_path} -> {output_path}", flush=True)
-    
+
     try:
         with open(input_path, 'r', encoding='utf-8') as f:
             content = f.read()
-        
-        if CONTEXT_LENGTH > 0:
-            # Calculate safe input length based on context size
-            if CONTEXT_LENGTH <= 4096:
-                safe_input_length = 1500   # Tiny chunks for very small context
-            elif CONTEXT_LENGTH <= 8192:
-                safe_input_length = 2500  # Small chunks
-            elif CONTEXT_LENGTH <= 16384:
-                safe_input_length = 6500  # Medium chunks
-            elif CONTEXT_LENGTH <= 32768:
-                safe_input_length = 14000  # Medium chunks
-            else:
-                # For large context, use proportional calculation
-                prompt_overhead = 500
-                output_reserve = CONTEXT_LENGTH // 2
-                safe_input_tokens = CONTEXT_LENGTH - prompt_overhead - output_reserve
-                safe_input_length = safe_input_tokens * 2
+
+        if CONTEXT_LENGTH <= 0:
+            print("📄 Processing entire file as one chunk (no context limit)...", flush=True)
+            translated_content = translate_with_ollama(content)
+        else:
+            # 프롬프트와 결과물을 위한 여유 공간을 고려하여 동적으로 안전 입력 길이 계산
+            prompt_overhead = 1024  # 프롬프트 템플릿의 예상 길이 (보수적으로 설정)
+            output_reserve_ratio = 3.0  # 원본 텍스트 대비 번역 결과물의 예상 길이 비율 (더 보수적으로)
+            safe_input_length = int((CONTEXT_LENGTH - prompt_overhead) / output_reserve_ratio)
             
-            if len(content) > safe_input_length:
-                # Split content into chunks based on safe input length
+            # 컨텍스트 크기에 따른 더 세밀한 조정
+            if CONTEXT_LENGTH <= 4096:
+                safe_input_length = 800   # 매우 작은 청크
+            elif CONTEXT_LENGTH <= 8192:
+                safe_input_length = 1800  # 작은 청크
+            elif CONTEXT_LENGTH <= 16384:
+                safe_input_length = 4000  # 중간 청크
+            elif CONTEXT_LENGTH <= 32768:
+                safe_input_length = 8000  # 중간-큰 청크
+            elif CONTEXT_LENGTH <= 65536:  # 64K 토큰
+                safe_input_length = 20000  # 큰 청크 (64K 기준)
+            else:
+                safe_input_length = min(safe_input_length, 25000)  # 매우 큰 컨텍스트
+            
+            overlap_lines = 3 # 조각 간 중첩할 라인 수
+
+            if len(content) <= safe_input_length:
+                print(f"📄 Processing entire file as one chunk (size: {len(content)}, safe limit: {safe_input_length})...", flush=True)
+                translated_content = translate_with_ollama(content)
+            else:
+                # 더 단순하고 안전한 청킹 방식으로 변경
                 chunks = []
-                current_chunk = ""
-                paragraphs = content.split('\n\n')
+                current_pos = 0
                 
-                for paragraph in paragraphs:
-                    # If paragraph itself is too long, split it further
-                    if len(paragraph) > safe_input_length:
-                        # Save current chunk if it exists
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                            current_chunk = ""
-                        
-                        # Split long paragraph by sentences or lines
-                        lines = paragraph.split('\n')
-                        temp_chunk = ""
-                        for line in lines:
-                            if len(temp_chunk) + len(line) + 1 <= safe_input_length:
-                                if temp_chunk:
-                                    temp_chunk += '\n' + line
-                                else:
-                                    temp_chunk = line
-                            else:
-                                if temp_chunk:
-                                    chunks.append(temp_chunk)
-                                temp_chunk = line
-                        if temp_chunk:
-                            current_chunk = temp_chunk
-                    elif len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
-                        if current_chunk:
-                            current_chunk += '\n\n' + paragraph
-                        else:
-                            current_chunk = paragraph
+                while current_pos < len(content):
+                    # 현재 위치에서 안전한 길이만큼 자르기
+                    end_pos = min(current_pos + safe_input_length, len(content))
+                    
+                    # 문장이 중간에 잘리지 않도록 마지막 완전한 줄까지만 포함
+                    if end_pos < len(content):
+                        # 마지막 줄바꿈 찾기
+                        last_newline = content.rfind('\n', current_pos, end_pos)
+                        if last_newline > current_pos:
+                            end_pos = last_newline + 1
+                    
+                    chunk = content[current_pos:end_pos]
+                    if chunk.strip():  # 비어있지 않은 청크만 추가
+                        chunks.append(chunk)
+                    
+                    # 다음 청크가 있다면 약간의 overlap 추가 (최대 500자)
+                    if end_pos < len(content):
+                        # overlap을 위해 현재 위치를 뒤로 조정
+                        overlap_start = max(end_pos - 500, current_pos)
+                        current_pos = overlap_start
                     else:
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                        current_chunk = paragraph
-                
-                if current_chunk:
-                    chunks.append(current_chunk)
-                
+                        current_pos = end_pos
+
                 translated_chunks = []
                 total_chunks = len(chunks)
-                
+
                 print(f"📊 Processing {total_chunks} chunks (safe input: {safe_input_length}, context: {CONTEXT_LENGTH})...", flush=True)
-                
+
                 for i, chunk in enumerate(chunks):
                     print(f"🔄 [{i+1}/{total_chunks}] Processing chunk (len: {len(chunk)})...", end='', flush=True)
                     
                     translated_chunk = translate_with_ollama(chunk)
-                    if translated_chunk:
-                        translated_chunks.append(translated_chunk)
-                        print(f" ✅ Done (result len: {len(translated_chunk)})", flush=True)
-                    else:
-                        print(f" ⚠️ Empty result", flush=True)
+                    translated_chunks.append(translated_chunk)
+                    
+                    print(f" ✅ Done (result len: {len(translated_chunk)})", flush=True)
                     time.sleep(0.5)
-                
+
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
-                translated_content = '\n\n'.join(translated_chunks)
-            else:
-                # File is small enough, process as single chunk
-                print(f"📄 Processing entire file as one chunk (size: {len(content)}, safe limit: {safe_input_length})...", flush=True)
-                translated_content = translate_with_ollama(content)
-        else:
-            # No context length limit, process entire file
-            print(f"📄 Processing entire file as one chunk (no context limit)...", flush=True)
-            translated_content = translate_with_ollama(content)
-        
-        # Create output directory
+                
+                # 더 나은 청크 조인 및 중복 제거
+                if len(translated_chunks) == 1:
+                    translated_content = translated_chunks[0]
+                else:
+                    # 청크들을 더 스마트하게 조인
+                    joined_chunks = []
+                    
+                    for i, chunk in enumerate(translated_chunks):
+                        if i == 0:
+                            joined_chunks.append(chunk)
+                        else:
+                            # 이전 청크의 마지막 몇 줄과 현재 청크의 첫 몇 줄을 비교
+                            prev_lines = joined_chunks[-1].split('\n')
+                            current_lines = chunk.split('\n')
+                            
+                            # 중복 찾기 (최대 10줄까지 확인)
+                            overlap_found = False
+                            max_check = min(10, len(prev_lines), len(current_lines))
+                            
+                            for overlap_len in range(max_check, 0, -1):
+                                prev_tail = prev_lines[-overlap_len:]
+                                current_head = current_lines[:overlap_len]
+                                
+                                # 유사한 내용인지 확인 (공백 제거하고 비교)
+                                prev_tail_clean = [line.strip() for line in prev_tail if line.strip()]
+                                current_head_clean = [line.strip() for line in current_head if line.strip()]
+                                
+                                if len(prev_tail_clean) >= 2 and len(current_head_clean) >= 2:
+                                    if prev_tail_clean == current_head_clean:
+                                        # 중복 발견, 중복 부분 제거하고 조인
+                                        remaining_current = '\n'.join(current_lines[overlap_len:])
+                                        if remaining_current.strip():
+                                            joined_chunks[-1] = joined_chunks[-1] + '\n' + remaining_current
+                                        overlap_found = True
+                                        break
+                            
+                            if not overlap_found:
+                                # 중복이 없으면 그냥 추가
+                                joined_chunks.append(chunk)
+                    
+                    translated_content = '\n\n'.join(joined_chunks)
+
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Add AI translation notice at the bottom
         ai_notice = "\n\n---\n\n> **⚠️ 이 문서는 AI로 번역된 문서입니다.**\n>\n> **⚠️ This document has been translated by AI.**"
-        
-        # Write translated content with AI notice at the bottom
+
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(translated_content + ai_notice)
-        
+
         print(f"🎉 Translation completed: {output_path}\n", flush=True)
         return True
     except Exception as e:
