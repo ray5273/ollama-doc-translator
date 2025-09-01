@@ -247,9 +247,12 @@ def process_markdown_file(input_path, output_path):
         # Create output directory
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Write translated content
+        # Add AI translation notice at the bottom
+        ai_notice = "\n\n---\n\n> **⚠️ 이 문서는 AI로 번역된 문서입니다.**\n>\n> **⚠️ This document has been translated by AI.**"
+        
+        # Write translated content with AI notice at the bottom
         with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(translated_content)
+            f.write(translated_content + ai_notice)
         
         print(f"🎉 Translation completed: {output_path}\n", flush=True)
         return True
