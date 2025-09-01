@@ -65,7 +65,7 @@ jobs:
       with:
         ollama-url: 'http://localhost:11434'
         model: 'timHan/llama3korean8B4QKM:latest'
-        context-length: 4096
+        context-length: 8192
         source-dir: 'docs'
         target-dir: 'docs-en'
         file-pattern: '**/*.md'
