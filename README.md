@@ -2,9 +2,9 @@
 
 A GitHub Action that automatically translates Korean markdown documents to English using local Ollama API with Exaone3.5 model.
 
-![GitHub release](https://img.shields.io/github/v/release/your-username/ollama-doc-translator)
+![GitHub release](https://img.shields.io/github/v/release/ray5273/ollama-doc-translator)
 ![GitHub marketplace](https://img.shields.io/badge/marketplace-ollama--translator-blue)
-![License](https://img.shields.io/github/license/your-username/ollama-doc-translator)
+![License](https://img.shields.io/github/license/ray5273/ollama-doc-translator)
 
 ## 🚀 Features
 
@@ -39,7 +39,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Translate Korean to English
-      uses: your-username/ollama-doc-translator@v1
+      uses: ray5273/ollama-doc-translator@v1
       with:
         source-dir: 'docs'
         target-dir: 'docs-en'
@@ -52,7 +52,7 @@ jobs:
 
 ```yaml
 - name: Translate with custom settings
-  uses: your-username/ollama-doc-translator@v1
+  uses: ray5273/ollama-doc-translator@v1
   with:
     ollama-url: 'http://localhost:11434'
     model: 'exaone3.5:7.8b'
