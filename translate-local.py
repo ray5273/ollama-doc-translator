@@ -9,6 +9,7 @@ import json
 import requests
 import time
 from pathlib import Path
+from markdown_chunker import chunk_markdown
 
 def check_ollama_server(ssl_verify=True):
     """Ollama 서버가 실행 중인지 확인"""
@@ -96,57 +97,18 @@ def process_markdown_file(input_path, output_path, context_length=4096, ssl_veri
             safe_input_length = safe_input_tokens * 2
         
         if len(content) > safe_input_length:
-            # Split content into chunks based on safe input length
-            chunks = []
-            current_chunk = ""
-            paragraphs = content.split('\n\n')
-            
-            for paragraph in paragraphs:
-                # If paragraph itself is too long, split it further
-                if len(paragraph) > safe_input_length:
-                    # Save current chunk if it exists
-                    if current_chunk:
-                        chunks.append(current_chunk)
-                        current_chunk = ""
-                    
-                    # Split long paragraph by sentences or lines
-                    lines = paragraph.split('\n')
-                    temp_chunk = ""
-                    for line in lines:
-                        if len(temp_chunk) + len(line) + 1 <= safe_input_length:
-                            if temp_chunk:
-                                temp_chunk += '\n' + line
-                            else:
-                                temp_chunk = line
-                        else:
-                            if temp_chunk:
-                                chunks.append(temp_chunk)
-                            temp_chunk = line
-                    if temp_chunk:
-                        current_chunk = temp_chunk
-                elif len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
-                    if current_chunk:
-                        current_chunk += '\n\n' + paragraph
-                    else:
-                        current_chunk = paragraph
-                else:
-                    if current_chunk:
-                        chunks.append(current_chunk)
-                    current_chunk = paragraph
-            
-            if current_chunk:
-                chunks.append(current_chunk)
-            
+            # Use markdown-aware chunking to avoid splitting structures
+            chunks = chunk_markdown(content, safe_input_length)
             translated_chunks = []
-            
+
             print(f"청크로 분할하여 번역 ({len(chunks)}개 청크, 안전한 입력 길이: {safe_input_length})")
-            
+
             for i, chunk in enumerate(chunks):
                 print(f"청크 번역 중 {i+1}/{len(chunks)}")
                 translated_chunk = translate_with_ollama(chunk, ssl_verify=ssl_verify)
                 translated_chunks.append(translated_chunk)
                 time.sleep(1)  # API 속도 제한
-            
+
             translated_content = '\n\n'.join(translated_chunks)
         else:
             # 파일이 충분히 작아서 한 번에 처리 가능

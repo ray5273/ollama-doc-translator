@@ -12,6 +12,7 @@ import time
 import glob
 from pathlib import Path
 import subprocess
+from markdown_chunker import chunk_markdown
 
 # Action inputs from environment variables
 OLLAMA_URL = os.getenv('INPUT_OLLAMA_URL', 'http://localhost:11434')
@@ -176,55 +177,16 @@ def process_markdown_file(input_path, output_path):
                 safe_input_length = safe_input_tokens * 2
             
             if len(content) > safe_input_length:
-                # Split content into chunks based on safe input length
-                chunks = []
-                current_chunk = ""
-                paragraphs = content.split('\n\n')
-                
-                for paragraph in paragraphs:
-                    # If paragraph itself is too long, split it further
-                    if len(paragraph) > safe_input_length:
-                        # Save current chunk if it exists
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                            current_chunk = ""
-                        
-                        # Split long paragraph by sentences or lines
-                        lines = paragraph.split('\n')
-                        temp_chunk = ""
-                        for line in lines:
-                            if len(temp_chunk) + len(line) + 1 <= safe_input_length:
-                                if temp_chunk:
-                                    temp_chunk += '\n' + line
-                                else:
-                                    temp_chunk = line
-                            else:
-                                if temp_chunk:
-                                    chunks.append(temp_chunk)
-                                temp_chunk = line
-                        if temp_chunk:
-                            current_chunk = temp_chunk
-                    elif len(current_chunk) + len(paragraph) + 2 <= safe_input_length:
-                        if current_chunk:
-                            current_chunk += '\n\n' + paragraph
-                        else:
-                            current_chunk = paragraph
-                    else:
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                        current_chunk = paragraph
-                
-                if current_chunk:
-                    chunks.append(current_chunk)
-                
+                # Use markdown-aware chunking to avoid splitting structures
+                chunks = chunk_markdown(content, safe_input_length)
                 translated_chunks = []
                 total_chunks = len(chunks)
-                
+
                 print(f"📊 Processing {total_chunks} chunks (safe input: {safe_input_length}, context: {CONTEXT_LENGTH})...", flush=True)
-                
+
                 for i, chunk in enumerate(chunks):
                     print(f"🔄 [{i+1}/{total_chunks}] Processing chunk (len: {len(chunk)})...", end='', flush=True)
-                    
+
                     translated_chunk = translate_with_ollama(chunk)
                     if translated_chunk:
                         translated_chunks.append(translated_chunk)
@@ -232,7 +194,7 @@ def process_markdown_file(input_path, output_path):
                     else:
                         print(f" ⚠️ Empty result", flush=True)
                     time.sleep(0.5)
-                
+
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
                 translated_content = '\n\n'.join(translated_chunks)
             else:
