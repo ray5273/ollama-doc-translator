@@ -208,24 +208,36 @@ def build_context_from_history(context_history, max_tokens):
 
 
 def split_markdown_into_chunks(text, max_tokens):
-    """Split markdown text into chunks by paragraph respecting token limits."""
-    paragraphs = text.split("\n\n")
+    """Split markdown text into chunks without breaking fenced code blocks."""
+    lines = text.splitlines()
     chunks = []
-    current = []
+    current_lines = []
     current_tokens = 0
+    in_code_block = False
+    fence = None
 
-    for para in paragraphs:
-        tokens = count_tokens(para) + 1  # account for joining newline
-        if current and current_tokens + tokens > max_tokens:
-            chunks.append("\n\n".join(current).strip())
-            current = [para]
-            current_tokens = tokens
+    for line in lines:
+        stripped = line.strip()
+        fence_match = re.match(r'^(```+)', stripped)
+        if fence_match:
+            if not in_code_block:
+                in_code_block = True
+                fence = fence_match.group(1)
+            elif stripped.startswith(fence):
+                in_code_block = False
+
+        line_tokens = count_tokens(line + "\n")
+
+        if current_lines and not in_code_block and current_tokens + line_tokens > max_tokens:
+            chunks.append("\n".join(current_lines).rstrip())
+            current_lines = [line]
+            current_tokens = line_tokens
         else:
-            current.append(para)
-            current_tokens += tokens
+            current_lines.append(line)
+            current_tokens += line_tokens
 
-    if current:
-        chunks.append("\n\n".join(current).strip())
+    if current_lines:
+        chunks.append("\n".join(current_lines).rstrip())
 
     return chunks
 
@@ -307,14 +319,14 @@ def process_markdown_file(input_path, output_path):
                     time.sleep(0.5)
 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
-                translated_content = "\n\n".join(translated_chunks)
+                translated_content = "\n".join(translated_chunks)
 
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         ai_notice = "\n\n---\n\n> **⚠️ 이 문서는 AI로 번역된 문서입니다.**\n>\n> **⚠️ This document has been translated by AI.**"
 
         with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(translated_content + ai_notice)
+            f.write(translated_content.rstrip() + ai_notice)
 
         print(f"🎉 Translation completed: {output_path}\n", flush=True)
         return True
@@ -532,7 +544,7 @@ def main():
     source_path = Path(SOURCE_DIR)
     target_path = Path(TARGET_DIR)
     
-    md_files = list(source_path.glob(FILE_PATTERN))
+    md_files = sorted([p for p in source_path.glob(FILE_PATTERN) if p.is_file()])
     
     if not md_files:
         log(f"No markdown files found in {SOURCE_DIR}")
