@@ -9,10 +9,23 @@ import sys
 import json
 import requests
 import time
-import glob
 import re
 from pathlib import Path
 import subprocess
+
+try:
+    import tiktoken
+    _ENCODING = tiktoken.get_encoding("cl100k_base")
+except Exception:
+    _ENCODING = None
+
+
+def count_tokens(text: str) -> int:
+    """Return token count using tiktoken if available."""
+    if _ENCODING is not None:
+        return len(_ENCODING.encode(text))
+    # Fallback rough estimate
+    return len(text) // 3
 
 # Action inputs from environment variables
 OLLAMA_URL = os.getenv('INPUT_OLLAMA_URL', 'http://localhost:11434')
@@ -113,9 +126,9 @@ def translate_with_ollama(text, retries=0, context_history=None):
     if context_history:
         # Calculate available tokens for context (reserve space for current text and prompt)
         prompt_base_tokens = 800  # Base prompt template size
-        current_text_tokens = len(text) // 3  # Rough token estimation (1 token ≈ 3-4 chars for Korean)
+        current_text_tokens = count_tokens(text)
         output_reserve_tokens = int(current_text_tokens * 1.5)  # Reserve space for translation output
-        
+
         available_context_tokens = CONTEXT_LENGTH - prompt_base_tokens - current_text_tokens - output_reserve_tokens
         
         if available_context_tokens > 200:  # Minimum viable context
@@ -190,36 +203,34 @@ def build_context_from_history(context_history, max_tokens):
     
     if not context_pairs:
         return None
-        
+
     return "\n\n".join(context_pairs)
 
-def extract_key_terms(text, max_terms=20):
-    """Extract key terms and phrases for consistency tracking"""
-    import re
-    
-    # Extract potential technical terms, proper nouns, and repeated phrases
-    # Korean technical terms (한글 + 영문/숫자 조합)
-    korean_terms = re.findall(r'[가-힣]+(?:[a-zA-Z0-9]+[가-힣]*)*', text)
-    # English terms in Korean context
-    english_terms = re.findall(r'[A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*', text)
-    # Special patterns (파일명, URL 등은 제외)
-    special_patterns = re.findall(r'[가-힣]{2,}(?:\s+[가-힣]{2,})*', text)
-    
-    all_terms = korean_terms + english_terms + special_patterns
-    
-    # Count frequency and return most common
-    term_counts = {}
-    for term in all_terms:
-        term = term.strip()
-        if len(term) > 1 and not re.match(r'^[0-9]+$', term):  # Skip single chars and pure numbers
-            term_counts[term] = term_counts.get(term, 0) + 1
-    
-    # Return most frequent terms
-    sorted_terms = sorted(term_counts.items(), key=lambda x: x[1], reverse=True)
-    return [term for term, count in sorted_terms[:max_terms] if count > 1]
+
+def split_markdown_into_chunks(text, max_tokens):
+    """Split markdown text into chunks by paragraph respecting token limits."""
+    paragraphs = text.split("\n\n")
+    chunks = []
+    current = []
+    current_tokens = 0
+
+    for para in paragraphs:
+        tokens = count_tokens(para) + 1  # account for joining newline
+        if current and current_tokens + tokens > max_tokens:
+            chunks.append("\n\n".join(current).strip())
+            current = [para]
+            current_tokens = tokens
+        else:
+            current.append(para)
+            current_tokens += tokens
+
+    if current:
+        chunks.append("\n\n".join(current).strip())
+
+    return chunks
 
 def process_markdown_file(input_path, output_path):
-    """Process a single markdown file with overlapping chunks"""
+    """Process a single markdown file with token-aware chunks"""
     print(f"\n📝 Starting translation: {input_path} -> {output_path}", flush=True)
 
     try:
@@ -233,132 +244,70 @@ def process_markdown_file(input_path, output_path):
             print("📄 Processing entire file as one chunk (no context limit)...", flush=True)
             translated_content = translate_with_ollama(content, context_history=context_history)
         else:
-            # 프롬프트와 결과물을 위한 여유 공간을 고려하여 동적으로 안전 입력 길이 계산
-            prompt_overhead = 1024  # 프롬프트 템플릿의 예상 길이 (보수적으로 설정)
-            output_reserve_ratio = 3.0  # 원본 텍스트 대비 번역 결과물의 예상 길이 비율 (더 보수적으로)
-            safe_input_length = int((CONTEXT_LENGTH - prompt_overhead) / output_reserve_ratio)
-            
-            # 컨텍스트 크기에 따른 더 세밀한 조정
-            if CONTEXT_LENGTH <= 4096:
-                safe_input_length = 800   # 매우 작은 청크
-            elif CONTEXT_LENGTH <= 8192:
-                safe_input_length = 1800  # 작은 청크
-            elif CONTEXT_LENGTH <= 16384:
-                safe_input_length = 4000  # 중간 청크
-            elif CONTEXT_LENGTH <= 32768:
-                safe_input_length = 8000  # 중간-큰 청크
-            elif CONTEXT_LENGTH <= 65536:  # 64K 토큰
-                safe_input_length = 20000  # 큰 청크 (64K 기준)
-            else:
-                safe_input_length = min(safe_input_length, 25000)  # 매우 큰 컨텍스트
-            
-            overlap_lines = 3 # 조각 간 중첩할 라인 수
+            # Calculate safe input tokens considering prompt and output
+            prompt_overhead = 1024
+            output_reserve_ratio = 3.0
+            safe_input_tokens = int((CONTEXT_LENGTH - prompt_overhead) / output_reserve_ratio)
 
-            if len(content) <= safe_input_length:
-                print(f"📄 Processing entire file as one chunk (size: {len(content)}, safe limit: {safe_input_length})...", flush=True)
+            if CONTEXT_LENGTH <= 4096:
+                safe_input_tokens = 800
+            elif CONTEXT_LENGTH <= 8192:
+                safe_input_tokens = 1800
+            elif CONTEXT_LENGTH <= 16384:
+                safe_input_tokens = 4000
+            elif CONTEXT_LENGTH <= 32768:
+                safe_input_tokens = 8000
+            elif CONTEXT_LENGTH <= 65536:
+                safe_input_tokens = 20000
+            else:
+                safe_input_tokens = min(safe_input_tokens, 25000)
+
+            content_tokens = count_tokens(content)
+
+            if content_tokens <= safe_input_tokens:
+                print(
+                    f"📄 Processing entire file as one chunk (tokens: {content_tokens}, safe limit: {safe_input_tokens})...",
+                    flush=True,
+                )
                 translated_content = translate_with_ollama(content, context_history=context_history)
             else:
-                # 더 단순하고 안전한 청킹 방식으로 변경
-                chunks = []
-                current_pos = 0
-                
-                while current_pos < len(content):
-                    # 현재 위치에서 안전한 길이만큼 자르기
-                    end_pos = min(current_pos + safe_input_length, len(content))
-                    
-                    # 문장이 중간에 잘리지 않도록 마지막 완전한 줄까지만 포함
-                    if end_pos < len(content):
-                        # 마지막 줄바꿈 찾기
-                        last_newline = content.rfind('\n', current_pos, end_pos)
-                        if last_newline > current_pos:
-                            end_pos = last_newline + 1
-                    
-                    chunk = content[current_pos:end_pos]
-                    if chunk.strip():  # 비어있지 않은 청크만 추가
-                        chunks.append(chunk)
-                    
-                    # 다음 청크가 있다면 약간의 overlap 추가 (최대 500자)
-                    if end_pos < len(content):
-                        # overlap을 위해 현재 위치를 뒤로 조정
-                        overlap_start = max(end_pos - 500, current_pos)
-                        current_pos = overlap_start
-                    else:
-                        current_pos = end_pos
-
+                chunks = split_markdown_into_chunks(content, safe_input_tokens)
                 translated_chunks = []
                 total_chunks = len(chunks)
 
-                print(f"📊 Processing {total_chunks} chunks (safe input: {safe_input_length}, context: {CONTEXT_LENGTH})...", flush=True)
+                print(
+                    f"📊 Processing {total_chunks} chunks (safe input: {safe_input_tokens}, context: {CONTEXT_LENGTH})...",
+                    flush=True,
+                )
 
                 for i, chunk in enumerate(chunks):
-                    print(f"🔄 [{i+1}/{total_chunks}] Processing chunk (len: {len(chunk)})...", end='', flush=True)
-                    
-                    # Use context from previous chunks for consistency
+                    print(
+                        f"🔄 [{i+1}/{total_chunks}] Processing chunk (tokens: {count_tokens(chunk)})...",
+                        end="",
+                        flush=True,
+                    )
+
                     translated_chunk = translate_with_ollama(chunk, context_history=context_history)
                     translated_chunks.append(translated_chunk)
-                    
-                    # Update context history with this translation pair
-                    # Extract key segments for context (not full chunk to save tokens)
-                    chunk_lines = chunk.strip().split('\n')
-                    translated_lines = translated_chunk.strip().split('\n')
-                    
-                    # Add key translation pairs to context (focus on sentences with Korean)
-                    for orig_line, trans_line in zip(chunk_lines[:5], translated_lines[:5]):  # Max 5 lines
-                        if orig_line.strip() and trans_line.strip():
-                            # Only add lines that contain Korean characters
-                            if re.search(r'[가-힣]', orig_line):
-                                context_history.append((orig_line.strip(), trans_line.strip()))
-                    
-                    # Keep context history manageable (last 20 pairs)
+
+                    chunk_lines = chunk.strip().split("\n")
+                    translated_lines = translated_chunk.strip().split("\n")
+
+                    for orig_line, trans_line in zip(chunk_lines[:10], translated_lines[:10]):
+                        if orig_line.strip() and trans_line.strip() and re.search(r"[가-힣]", orig_line):
+                            context_history.append((orig_line.strip(), trans_line.strip()))
+
                     if len(context_history) > 20:
                         context_history = context_history[-20:]
-                    
-                    print(f" ✅ Done (result len: {len(translated_chunk)}, context pairs: {len(context_history)})", flush=True)
+
+                    print(
+                        f" ✅ Done (result tokens: {count_tokens(translated_chunk)}, context pairs: {len(context_history)})",
+                        flush=True,
+                    )
                     time.sleep(0.5)
 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
-                
-                # 더 나은 청크 조인 및 중복 제거
-                if len(translated_chunks) == 1:
-                    translated_content = translated_chunks[0]
-                else:
-                    # 청크들을 더 스마트하게 조인
-                    joined_chunks = []
-                    
-                    for i, chunk in enumerate(translated_chunks):
-                        if i == 0:
-                            joined_chunks.append(chunk)
-                        else:
-                            # 이전 청크의 마지막 몇 줄과 현재 청크의 첫 몇 줄을 비교
-                            prev_lines = joined_chunks[-1].split('\n')
-                            current_lines = chunk.split('\n')
-                            
-                            # 중복 찾기 (최대 10줄까지 확인)
-                            overlap_found = False
-                            max_check = min(10, len(prev_lines), len(current_lines))
-                            
-                            for overlap_len in range(max_check, 0, -1):
-                                prev_tail = prev_lines[-overlap_len:]
-                                current_head = current_lines[:overlap_len]
-                                
-                                # 유사한 내용인지 확인 (공백 제거하고 비교)
-                                prev_tail_clean = [line.strip() for line in prev_tail if line.strip()]
-                                current_head_clean = [line.strip() for line in current_head if line.strip()]
-                                
-                                if len(prev_tail_clean) >= 2 and len(current_head_clean) >= 2:
-                                    if prev_tail_clean == current_head_clean:
-                                        # 중복 발견, 중복 부분 제거하고 조인
-                                        remaining_current = '\n'.join(current_lines[overlap_len:])
-                                        if remaining_current.strip():
-                                            joined_chunks[-1] = joined_chunks[-1] + '\n' + remaining_current
-                                        overlap_found = True
-                                        break
-                            
-                            if not overlap_found:
-                                # 중복이 없으면 그냥 추가
-                                joined_chunks.append(chunk)
-                    
-                    translated_content = '\n\n'.join(joined_chunks)
+                translated_content = "\n\n".join(translated_chunks)
 
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -583,8 +532,7 @@ def main():
     source_path = Path(SOURCE_DIR)
     target_path = Path(TARGET_DIR)
     
-    pattern = source_path / FILE_PATTERN
-    md_files = list(source_path.rglob('*.md'))
+    md_files = list(source_path.glob(FILE_PATTERN))
     
     if not md_files:
         log(f"No markdown files found in {SOURCE_DIR}")

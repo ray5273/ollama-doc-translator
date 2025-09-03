@@ -17,7 +17,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     && apt-get install -y gh
 
 # Install Python dependencies
-RUN pip install --no-cache-dir requests
+RUN pip install --no-cache-dir requests tiktoken
 
 # Copy the entrypoint script
 COPY entrypoint.py /entrypoint.py
