@@ -10,6 +10,7 @@ import json
 import requests
 import time
 import glob
+import re
 from pathlib import Path
 import subprocess
 
@@ -101,11 +102,26 @@ def pull_model():
         log(f"Failed to pull model: {str(e)}")
         return False
 
-def translate_with_ollama(text, retries=0):
-    """Translate text using Ollama API with retry logic"""
+def translate_with_ollama(text, retries=0, context_history=None):
+    """Translate text using Ollama API with retry logic and context awareness"""
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
+
+    # Build context-aware prompt with previous translations
+    context_section = ""
+    if context_history:
+        # Calculate available tokens for context (reserve space for current text and prompt)
+        prompt_base_tokens = 800  # Base prompt template size
+        current_text_tokens = len(text) // 3  # Rough token estimation (1 token ≈ 3-4 chars for Korean)
+        output_reserve_tokens = int(current_text_tokens * 1.5)  # Reserve space for translation output
+        
+        available_context_tokens = CONTEXT_LENGTH - prompt_base_tokens - current_text_tokens - output_reserve_tokens
+        
+        if available_context_tokens > 200:  # Minimum viable context
+            context_text = build_context_from_history(context_history, available_context_tokens)
+            if context_text:
+                context_section = f"""\n### Previous Translation Context\nTo maintain consistency, here are recent translations from this document:\n{context_text}\n"""
 
     prompt = f"""Please translate the following Korean markdown document into English. Strictly follow these instructions:
 
@@ -115,7 +131,7 @@ def translate_with_ollama(text, retries=0):
 - If the input is already in English or contains no Korean, return the input as is.
 - Translate the same terms consistently throughout the document.
 - Do not output unnecessary additional explanations, comments, or phrases like "Here is the translation:".
-- If a sentence is cut off, translate it faithfully up to the cut-off point without unnecessary speculation.
+- If a sentence is cut off, translate it faithfully up to the cut-off point without unnecessary speculation.{context_section}
 
 Korean markdown document to translate:
 {text}
@@ -146,7 +162,61 @@ English markdown document:"""
     except Exception as e:
         print(f"⚠️  Translation error (attempt {retries + 1}): {e}", flush=True)
         time.sleep(2 ** retries)  # Exponential backoff
-        return translate_with_ollama(text, retries + 1)
+        return translate_with_ollama(text, retries + 1, context_history)
+
+def build_context_from_history(context_history, max_tokens):
+    """Build context string from previous translations within token limit"""
+    if not context_history:
+        return None
+    
+    context_pairs = []
+    current_tokens = 0
+    max_char_estimate = max_tokens * 3  # Rough estimation: 1 token ≈ 3-4 chars for Korean/English
+    
+    # Start from most recent translations and work backwards
+    for korean, english in reversed(context_history[-10:]):  # Use last 10 pairs max
+        # Create context pair with limited length
+        korean_snippet = korean[:200] + "..." if len(korean) > 200 else korean
+        english_snippet = english[:200] + "..." if len(english) > 200 else english
+        
+        pair_text = f"Korean: {korean_snippet}\nEnglish: {english_snippet}"
+        pair_length = len(pair_text)
+        
+        if current_tokens + pair_length > max_char_estimate:
+            break
+            
+        context_pairs.insert(0, pair_text)
+        current_tokens += pair_length
+    
+    if not context_pairs:
+        return None
+        
+    return "\n\n".join(context_pairs)
+
+def extract_key_terms(text, max_terms=20):
+    """Extract key terms and phrases for consistency tracking"""
+    import re
+    
+    # Extract potential technical terms, proper nouns, and repeated phrases
+    # Korean technical terms (한글 + 영문/숫자 조합)
+    korean_terms = re.findall(r'[가-힣]+(?:[a-zA-Z0-9]+[가-힣]*)*', text)
+    # English terms in Korean context
+    english_terms = re.findall(r'[A-Z][a-zA-Z0-9]*(?:\s+[A-Z][a-zA-Z0-9]*)*', text)
+    # Special patterns (파일명, URL 등은 제외)
+    special_patterns = re.findall(r'[가-힣]{2,}(?:\s+[가-힣]{2,})*', text)
+    
+    all_terms = korean_terms + english_terms + special_patterns
+    
+    # Count frequency and return most common
+    term_counts = {}
+    for term in all_terms:
+        term = term.strip()
+        if len(term) > 1 and not re.match(r'^[0-9]+$', term):  # Skip single chars and pure numbers
+            term_counts[term] = term_counts.get(term, 0) + 1
+    
+    # Return most frequent terms
+    sorted_terms = sorted(term_counts.items(), key=lambda x: x[1], reverse=True)
+    return [term for term, count in sorted_terms[:max_terms] if count > 1]
 
 def process_markdown_file(input_path, output_path):
     """Process a single markdown file with overlapping chunks"""
@@ -156,9 +226,12 @@ def process_markdown_file(input_path, output_path):
         with open(input_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
+        # Initialize context history for this file
+        context_history = []
+        
         if CONTEXT_LENGTH <= 0:
             print("📄 Processing entire file as one chunk (no context limit)...", flush=True)
-            translated_content = translate_with_ollama(content)
+            translated_content = translate_with_ollama(content, context_history=context_history)
         else:
             # 프롬프트와 결과물을 위한 여유 공간을 고려하여 동적으로 안전 입력 길이 계산
             prompt_overhead = 1024  # 프롬프트 템플릿의 예상 길이 (보수적으로 설정)
@@ -183,7 +256,7 @@ def process_markdown_file(input_path, output_path):
 
             if len(content) <= safe_input_length:
                 print(f"📄 Processing entire file as one chunk (size: {len(content)}, safe limit: {safe_input_length})...", flush=True)
-                translated_content = translate_with_ollama(content)
+                translated_content = translate_with_ollama(content, context_history=context_history)
             else:
                 # 더 단순하고 안전한 청킹 방식으로 변경
                 chunks = []
@@ -220,10 +293,27 @@ def process_markdown_file(input_path, output_path):
                 for i, chunk in enumerate(chunks):
                     print(f"🔄 [{i+1}/{total_chunks}] Processing chunk (len: {len(chunk)})...", end='', flush=True)
                     
-                    translated_chunk = translate_with_ollama(chunk)
+                    # Use context from previous chunks for consistency
+                    translated_chunk = translate_with_ollama(chunk, context_history=context_history)
                     translated_chunks.append(translated_chunk)
                     
-                    print(f" ✅ Done (result len: {len(translated_chunk)})", flush=True)
+                    # Update context history with this translation pair
+                    # Extract key segments for context (not full chunk to save tokens)
+                    chunk_lines = chunk.strip().split('\n')
+                    translated_lines = translated_chunk.strip().split('\n')
+                    
+                    # Add key translation pairs to context (focus on sentences with Korean)
+                    for orig_line, trans_line in zip(chunk_lines[:5], translated_lines[:5]):  # Max 5 lines
+                        if orig_line.strip() and trans_line.strip():
+                            # Only add lines that contain Korean characters
+                            if re.search(r'[가-힣]', orig_line):
+                                context_history.append((orig_line.strip(), trans_line.strip()))
+                    
+                    # Keep context history manageable (last 20 pairs)
+                    if len(context_history) > 20:
+                        context_history = context_history[-20:]
+                    
+                    print(f" ✅ Done (result len: {len(translated_chunk)}, context pairs: {len(context_history)})", flush=True)
                     time.sleep(0.5)
 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
