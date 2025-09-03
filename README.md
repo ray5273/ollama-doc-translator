@@ -19,6 +19,7 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 
 - A running Ollama server with access to the Exaone3.5:7.8b model
 - GitHub repository with Korean markdown files
+- Python packages `requests` and `markdown-it-py` (installed automatically in the Action)
 
 ## 🛠️ Usage
 
