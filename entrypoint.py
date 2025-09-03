@@ -115,26 +115,22 @@ def pull_model():
         log(f"Failed to pull model: {str(e)}")
         return False
 
-def translate_with_ollama(text, retries=0, context_history=None):
-    """Translate text using Ollama API with retry logic and context awareness"""
+def translate_with_ollama(text, retries=0, prev_pair=None):
+    """Translate text using Ollama API with retry logic and immediate previous context"""
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
 
-    # Build context-aware prompt with previous translations
     context_section = ""
-    if context_history:
-        # Calculate available tokens for context (reserve space for current text and prompt)
-        prompt_base_tokens = 800  # Base prompt template size
-        current_text_tokens = count_tokens(text)
-        output_reserve_tokens = int(current_text_tokens * 1.5)  # Reserve space for translation output
-
-        available_context_tokens = CONTEXT_LENGTH - prompt_base_tokens - current_text_tokens - output_reserve_tokens
-        
-        if available_context_tokens > 200:  # Minimum viable context
-            context_text = build_context_from_history(context_history, available_context_tokens)
-            if context_text:
-                context_section = f"""\n### Previous Translation Context\nTo maintain consistency, here are recent translations from this document:\n{context_text}\n"""
+    if prev_pair:
+        prev_korean, prev_english = prev_pair
+        prev_korean = prev_korean[-500:]
+        prev_english = prev_english[-500:]
+        context_section = (
+            "\n### Previous Translation Context\n"
+            f"Korean: {prev_korean}\n"
+            f"English: {prev_english}\n"
+        )
 
     prompt = f"""Please translate the following Korean markdown document into English. Strictly follow these instructions:
 
@@ -175,36 +171,7 @@ English markdown document:"""
     except Exception as e:
         print(f"⚠️  Translation error (attempt {retries + 1}): {e}", flush=True)
         time.sleep(2 ** retries)  # Exponential backoff
-        return translate_with_ollama(text, retries + 1, context_history)
-
-def build_context_from_history(context_history, max_tokens):
-    """Build context string from previous translations within token limit"""
-    if not context_history:
-        return None
-    
-    context_pairs = []
-    current_tokens = 0
-    max_char_estimate = max_tokens * 3  # Rough estimation: 1 token ≈ 3-4 chars for Korean/English
-    
-    # Start from most recent translations and work backwards
-    for korean, english in reversed(context_history[-10:]):  # Use last 10 pairs max
-        # Create context pair with limited length
-        korean_snippet = korean[:200] + "..." if len(korean) > 200 else korean
-        english_snippet = english[:200] + "..." if len(english) > 200 else english
-        
-        pair_text = f"Korean: {korean_snippet}\nEnglish: {english_snippet}"
-        pair_length = len(pair_text)
-        
-        if current_tokens + pair_length > max_char_estimate:
-            break
-            
-        context_pairs.insert(0, pair_text)
-        current_tokens += pair_length
-    
-    if not context_pairs:
-        return None
-
-    return "\n\n".join(context_pairs)
+        return translate_with_ollama(text, retries + 1, prev_pair)
 
 
 def split_markdown_into_chunks(text, max_tokens):
@@ -249,12 +216,12 @@ def process_markdown_file(input_path, output_path):
         with open(input_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Initialize context history for this file
-        context_history = []
+        # Track only the immediate previous chunk translation
+        prev_pair = None
         
         if CONTEXT_LENGTH <= 0:
             print("📄 Processing entire file as one chunk (no context limit)...", flush=True)
-            translated_content = translate_with_ollama(content, context_history=context_history)
+            translated_content = translate_with_ollama(content, prev_pair=prev_pair)
         else:
             # Calculate safe input tokens considering prompt and output
             prompt_overhead = 1024
@@ -281,7 +248,7 @@ def process_markdown_file(input_path, output_path):
                     f"📄 Processing entire file as one chunk (tokens: {content_tokens}, safe limit: {safe_input_tokens})...",
                     flush=True,
                 )
-                translated_content = translate_with_ollama(content, context_history=context_history)
+                translated_content = translate_with_ollama(content, prev_pair=prev_pair)
             else:
                 chunks = split_markdown_into_chunks(content, safe_input_tokens)
                 translated_chunks = []
@@ -299,21 +266,13 @@ def process_markdown_file(input_path, output_path):
                         flush=True,
                     )
 
-                    translated_chunk = translate_with_ollama(chunk, context_history=context_history)
+                    translated_chunk = translate_with_ollama(chunk, prev_pair=prev_pair)
                     translated_chunks.append(translated_chunk)
 
-                    chunk_lines = chunk.strip().split("\n")
-                    translated_lines = translated_chunk.strip().split("\n")
-
-                    for orig_line, trans_line in zip(chunk_lines[:10], translated_lines[:10]):
-                        if orig_line.strip() and trans_line.strip() and re.search(r"[가-힣]", orig_line):
-                            context_history.append((orig_line.strip(), trans_line.strip()))
-
-                    if len(context_history) > 20:
-                        context_history = context_history[-20:]
+                    prev_pair = (chunk[-1000:], translated_chunk[-1000:])
 
                     print(
-                        f" ✅ Done (result tokens: {count_tokens(translated_chunk)}, context pairs: {len(context_history)})",
+                        f" ✅ Done (result tokens: {count_tokens(translated_chunk)})",
                         flush=True,
                     )
                     time.sleep(0.5)
