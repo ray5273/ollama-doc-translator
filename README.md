@@ -10,6 +10,8 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 
 - **Automatic Translation**: Translate Korean markdown files to English automatically
 - **AI-Powered**: Uses Exaone3.5:7.8b model for high-quality translations  
+- **Smart Chunking**: Token-aware paragraph splitting with recursive optimization for large documents
+- **Debug & Analysis**: Built-in chunking analysis and debug file generation
 - **Customizable**: Configure source/target directories, models, and translation parameters
 - **Auto PR Creation**: Automatically creates pull requests with translations
 - **Smart Skipping**: Skip files that are already translated and up-to-date
@@ -86,6 +88,7 @@ jobs:
 | `pr-branch` | PR branch name | No | `translation-update` |
 | `commit-message` | Commit message | No | `docs: Update English translations` |
 | `github-token` | GitHub token for PR creation | No | `${{ github.token }}` |
+| `context-length` | Model context length for chunking | No | `32768` |
 
 ## 📤 Outputs
 
@@ -144,6 +147,57 @@ your-repo/
 └── README.md
 ```
 
+## 🔍 Smart Chunking & Debug Features
+
+### Automatic Debug File Generation
+
+During translation, the system automatically generates debug files to help you understand how large documents are being processed:
+
+- **Real-time chunking logs**: Console output showing paragraph analysis and splitting decisions
+- **Debug chunks**: Individual `.md` files for each chunk with metadata headers
+- **Summary reports**: Overview of chunking process with token distribution
+
+Debug files are saved to `debug_chunks/` directory:
+```
+debug_chunks/
+├── filename_chunk_001.md          # Individual chunks with metadata
+├── filename_chunk_002.md
+├── ...
+└── filename_summary.md            # Chunking summary report
+```
+
+### Standalone Chunking Analysis
+
+For advanced debugging and optimization, use the standalone analysis tool:
+
+```bash
+# Analyze chunking process without translation
+python debug_chunking_standalone.py docs/large-document.md
+```
+
+**Features:**
+- Step-by-step visualization of paragraph splitting
+- Token distribution statistics (min/max/average)  
+- Detailed analysis reports with chunk previews
+- Individual chunk files for manual inspection
+
+**Output files in `debug_chunks_analysis/`:**
+- `*_analysis.md`: Comprehensive analysis report
+- `*_final_chunk_*.md`: Final optimized chunks
+
+### Token-Aware Chunking Strategy
+
+The system uses sophisticated chunking logic:
+
+1. **Paragraph Detection**: Split content by empty lines (`\n\n`) 
+2. **Token Calculation**: Accurate counting using tiktoken (fallback: char-based estimation)
+3. **Recursive Splitting**: Large paragraphs split by:
+   - Sentences (Korean/English punctuation)
+   - Lines (if sentences too long)
+   - Character splitting (last resort)
+4. **Optimization**: Small chunks regrouped within token limits
+5. **Context Awareness**: Uses 40% of context length for safety margin
+
 ## 🚀 Getting Started
 
 1. **Fork this repository** or create a new one
@@ -151,6 +205,15 @@ your-repo/
 3. **Create a workflow file** (see usage examples above)
 4. **Set up Ollama** on your runner with the required model
 5. **Push changes** to trigger automatic translation
+
+### For Large Documents
+
+When working with large documents (>30,000 tokens):
+
+1. **Monitor debug output**: Check console logs for chunking details
+2. **Review debug files**: Inspect generated chunk files in `debug_chunks/`
+3. **Adjust context length**: Increase `context-length` input if needed
+4. **Use analysis tool**: Run `debug_chunking_standalone.py` for optimization
 
 ## 🤝 Contributing
 
