@@ -107,29 +107,19 @@ def translate_with_ollama(text, retries=0):
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     
-    prompt = f"""다음 한국어 마크다운 문서를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
-
-- 마크다운 형식과 구조를 절대 변경하지 마세요
-- 코드 블록, 인라인 코드(`...`), 링크, URL, 이미지 경로, 수식, Mermaid, HTML 주석은 절대 번역하거나 수정하지 마세요
-- 코드 블록은 ```python, ```js 등 언어 태그 포함 그대로 유지하세요
-- 목록, 테이블, YAML 프론트매터의 구조와 들여쓰기를 그대로 유지하세요
-- 입력이 이미 영어이거나 한국어가 없다면 입력 그대로 반환하세요
-- 같은 용어는 문서 전체에서 일관되게 번역하세요
-- 불필요한 추가 설명, 주석, “Here is translation:” 같은 문구를 출력하지 마세요
-- 문장이 잘린 경우, 불필요하게 추측하지 말고 잘린 부분까지만 충실히 번역하세요
-
-한국어 마크다운 문서:
+    prompt = f"""Translate the following segment into Korean, without additional explanation.
 {text}
-
-영어 마크다운 문서:"""
+"""
     
     payload = {
         "model": MODEL,
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": TEMPERATURE,
-            "top_p": 0.9
+            "temperature": 0.7,
+            "top_k": 20,
+            "top_p": 0.6,
+            "repetition_penalty":1.05
         }
     }
     
