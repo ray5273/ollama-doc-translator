@@ -107,18 +107,8 @@ def translate_with_ollama(text, retries=0):
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     
-    prompt = f"""Please translate the following Korean markdown document into English. 
-Strictly follow these guidelines:
-- Do not change the markdown format or structure
-- Never translate or modify code blocks, inline code (`...`), links, URLs, image paths, formulas, Mermaid, or HTML comments
-- Keep code blocks exactly as they are, including language tags like ```python, ```js, etc.
-- Keep the structure and indentation of lists, tables, and YAML frontmatter exactly as they are
-- If the input is already in English or contains no Korean, return it as is
-- Use consistent translations for the same terms throughout the document
-- Do not output unnecessary explanations, comments, or phrases like “Here is the translation:”
-- If a sentence is cut off, translate faithfully up to the cut-off point without unnecessary speculation
-
-Korean markdown document:
+    prompt = f"""Translate the following segment into English, without additional explanation, without changing markdown format.
+    
 {text}
 """
     
