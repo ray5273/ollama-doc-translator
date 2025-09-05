@@ -64,7 +64,7 @@ jobs:
       uses: ./  # Use the local action
       with:
         ollama-url: 'http://localhost:11434'
-        model: 'exaone3.5:7.8b'
+        model: 'huihui_ai/hunyuan-mt-abliterated:7b'
         context-length: 4096
         source-dir: 'docs'
         target-dir: 'docs-en'
