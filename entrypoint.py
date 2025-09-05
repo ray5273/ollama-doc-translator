@@ -107,7 +107,7 @@ def translate_with_ollama(text, retries=0):
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     
-    prompt = f"""Translate the following segment into Korean, without additional explanation.
+    prompt = f"""Translate the following segment into English, without additional explanation.
 {text}
 """
     
