@@ -232,12 +232,17 @@ def split_markdown_by_paragraphs(content: str) -> list:
     return merged_paragraphs
 
 def calculate_safe_input_tokens(context_length: int) -> int:
-    """Calculate safe input token count - more conservative for large chunks"""
-    max_output_tokens = 8192   # Reduced output reserve
-    prompt_overhead = 1000     # Reserve tokens for prompt
-    # Use only 40% of remaining context to prevent timeouts and ensure smaller chunks
+    """Calculate safe input token count and handle small context sizes safely"""
+    # Cap reserves so they never exceed available context
+    max_output_tokens = min(8192, context_length // 2)  # Reserve at most half for output
+    prompt_overhead = min(1000, context_length // 4)    # Scale prompt overhead
+
+    # Remaining tokens available for input
     remaining = context_length - max_output_tokens - prompt_overhead
-    return int(remaining * 0.4)
+    safe_tokens = int(remaining * 0.4)                  # Use only 40% for input
+
+    # Ensure we never return a non-positive value
+    return max(safe_tokens, 200)
 
 def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
     """Split lines while preserving markdown structure like headers"""
