@@ -120,8 +120,7 @@ Strictly follow these guidelines:
 
 Korean markdown document:
 {text}
-
-English markdown document:"""
+"""
     
     payload = {
         "model": MODEL,
