@@ -130,20 +130,10 @@ def translate_with_ollama(text, retries=0):
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
-    system_prompt = "당신은 한국어 마크다운 문서를 영어로 번역하는 전문 기술 번역가입니다."
-    prompt = f"""**## CRITICAL INSTRUCTIONS - FOLLOW STRICTLY ##**
-
-1.  **Preserve Structure:** All markdown syntax—including headings (`#`), lists (`-`, `1.`), code blocks (```), inline code (`...`), links (`[]()`), images, tables, blockquotes (`>`), and horizontal rules (`---`)—MUST be kept exactly as they are.
-2.  **Translate Content Only:** Only translate the human-readable Korean text.
-3.  **DO NOT Translate Non-Text Elements:**
-    - Code within fenced code blocks (```...```) and inline code (`...`).
-    - URLs, file paths, and technical identifiers.
-    - YAML Frontmatter.
-    - HTML/XML tags.
-4.  **No Extra Formatting:** Do not add or remove any markdown elements. Do not introduce new formatting.
-5.  **Output Only Translation:** Your response must contain ONLY the translated markdown content and nothing else. Do not add introductory phrases like "Here is the English translation:".
-6.  **Complete Code Blocks:** If the input contains code blocks (```), ensure ALL code blocks are properly closed with ```. Never leave a code block unclosed.
-
+    system_prompt = "You are a professional translator that translates Korean markdown documents to English while preserving all markdown syntax and structure."
+    prompt = f"""Translate the following Korean markdown document to English according to the instructions below.
+- Change only Korean text to English, keep all markdown syntax intact.
+- Don't add any extra explanations or comments. ("Here is the translation:" etc.)
 
 Korean Markdown Document:
 {text}
@@ -237,9 +227,137 @@ def count_tokens(text: str) -> int:
     
     return int(korean_tokens + code_tokens + other_tokens)
 
-def split_markdown_by_paragraphs(content: str) -> list:
-    """Split markdown content by paragraphs while preserving headers with content"""
-    # First split by double newlines
+def split_markdown_by_sections(content: str, max_tokens: int = None) -> list:
+    """Split markdown content by sections while preserving original content structure and respecting token limits"""
+    lines = content.split('\n')
+    sections = []
+    current_section_lines = []
+    heading_context = []  # Stack to track current heading hierarchy
+    section_start_index = 0
+    current_tokens = 0
+    
+    # Use a reasonable default if no max_tokens provided
+    if max_tokens is None:
+        max_tokens = 1500  # Conservative default for chunking
+    
+    for i, line in enumerate(lines):
+        line_stripped = line.strip()
+        line_tokens = count_tokens(line + '\n')
+        
+        # Check if this line is a heading
+        heading_match = re.match(r'^(#+)\s+(.+)$', line_stripped)
+        if heading_match:
+            level = len(heading_match.group(1))
+            heading_text = heading_match.group(2)
+            
+            # Check if we should finish current section due to token limit or heading level change
+            should_break = False
+            
+            if current_section_lines:
+                # If adding this heading would exceed token limit, finish current section
+                if current_tokens + line_tokens > max_tokens:
+                    should_break = True
+                # Or if this is a major section break (level 1-3 heading)
+                elif level <= 3:
+                    # Check if we have enough content to justify a break
+                    if current_tokens > max_tokens * 0.3:  # At least 30% of max tokens
+                        should_break = True
+            
+            if should_break:
+                # Finish current section
+                original_section = '\n'.join(lines[section_start_index:i])
+                if original_section.strip():
+                    sections.append({
+                        'content': original_section.strip(),
+                        'context': heading_context.copy()
+                    })
+                
+                # Start new section
+                section_start_index = i
+                current_section_lines = []
+                current_tokens = 0
+            
+            # Update heading context stack
+            # Remove deeper level headings
+            heading_context = [h for h in heading_context if h[0] < level]
+            # Add current heading
+            heading_context.append((level, heading_text))
+            
+            # Add to current section
+            current_section_lines.append(line)
+            current_tokens += line_tokens
+        else:
+            # Regular content line
+            # If adding this line would exceed token limit, finish current section
+            if current_section_lines and current_tokens + line_tokens > max_tokens:
+                # Finish current section
+                original_section = '\n'.join(lines[section_start_index:i])
+                if original_section.strip():
+                    sections.append({
+                        'content': original_section.strip(),
+                        'context': heading_context.copy()
+                    })
+                
+                # Start new section with current line
+                section_start_index = i
+                current_section_lines = [line]
+                current_tokens = line_tokens
+            else:
+                # Add content line to current section
+                current_section_lines.append(line)
+                current_tokens += line_tokens
+    
+    # Add final section
+    if current_section_lines:
+        original_section = '\n'.join(lines[section_start_index:])
+        if original_section.strip():
+            sections.append({
+                'content': original_section.strip(),
+                'context': heading_context.copy()
+            })
+    
+    return [section for section in sections if section['content'].strip()]
+
+def prepare_section_for_translation(section_data: dict) -> str:
+    """Prepare section for translation by adding minimal context if needed"""
+    content = section_data['content']
+    context = section_data['context']
+    
+    # If section already starts with a heading, no need to add context
+    if content.strip().startswith('#'):
+        return content
+    
+    # If no context needed, return original content
+    if not context:
+        return content
+    
+    # Add minimal context - only the most recent relevant heading
+    context_lines = []
+    # Only add the immediate parent heading for context
+    if len(context) > 1:
+        parent_level, parent_text = context[-2]  # Second to last is the parent
+        context_lines.append('#' * parent_level + ' ' + parent_text)
+    
+    # Add the current section heading
+    if context:
+        current_level, current_text = context[-1]
+        context_lines.append('#' * current_level + ' ' + current_text)
+    
+    # Combine context with original content
+    if context_lines:
+        return '\n'.join(context_lines) + '\n\n' + content
+    else:
+        return content
+
+def split_markdown_by_paragraphs(content: str, max_tokens: int = None) -> list:
+    """Fallback: Split markdown content by paragraphs while preserving headers with content"""
+    # First try section-aware splitting
+    sections = split_markdown_by_sections(content, max_tokens)
+    if len(sections) > 1:
+        # Convert section data back to simple strings for compatibility
+        return [section['content'] for section in sections]
+    
+    # Fallback to paragraph-based splitting for simple documents
     raw_paragraphs = re.split(r'\n\s*\n', content.strip())
     raw_paragraphs = [p.strip() for p in raw_paragraphs if p.strip()]
     
@@ -505,6 +623,57 @@ def split_text_by_chars(text: str, max_tokens: int) -> list:
     
     return chunks
 
+def smart_join_chunks(chunks: list) -> str:
+    """Smart chunk joining that prevents unnecessary line breaks between numbered items"""
+    if not chunks:
+        return ""
+    
+    if len(chunks) == 1:
+        return chunks[0]
+    
+    result = []
+    
+    for i, chunk in enumerate(chunks):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        
+        if i == 0:
+            result.append(chunk)
+        else:
+            prev_chunk = result[-1] if result else ""
+            
+            # Check if previous chunk ends with a numbered item and current chunk starts with a numbered item
+            prev_ends_with_number = bool(re.search(r'(\n|^)\d+\.\s.*$', prev_chunk, re.MULTILINE))
+            curr_starts_with_number = bool(re.match(r'^\d+\.\s', chunk))
+            
+            # Check if previous chunk ends with a list item and current chunk starts with a list item
+            prev_ends_with_list = bool(re.search(r'\n[-*]\s.*$', prev_chunk, re.MULTILINE))
+            curr_starts_with_list = bool(re.match(r'^[-*]\s', chunk))
+            
+            # Check if both chunks are part of continuous content (no headers separating them)
+            prev_ends_with_header = bool(re.search(r'\n#+\s.*$', prev_chunk, re.MULTILINE))
+            curr_starts_with_header = bool(re.match(r'^#+\s', chunk))
+            
+            # Determine separator based on content
+            if (prev_ends_with_number and curr_starts_with_number) or \
+               (prev_ends_with_list and curr_starts_with_list):
+                # For continuous numbered/bulleted lists, use single newline
+                separator = '\n'
+            elif prev_ends_with_header or curr_starts_with_header:
+                # Always use double newline around headers
+                separator = '\n\n'
+            elif prev_chunk.endswith('\n') or chunk.startswith('\n'):
+                # If either chunk already has newlines, use single newline
+                separator = '\n'
+            else:
+                # Default case: use double newline for paragraph separation
+                separator = '\n\n'
+            
+            result.append(separator + chunk)
+    
+    return ''.join(result)
+
 def save_debug_chunks(input_path: str, chunks: list, debug_dir: str = "debug_chunks"):
     """Save chunks to debug files for inspection"""
     import os
@@ -729,7 +898,7 @@ def process_markdown_file(input_path, output_path):
             
             if total_tokens > safe_tokens:
                 # Split content by paragraphs and group by token limits
-                paragraphs = split_markdown_by_paragraphs(content)
+                paragraphs = split_markdown_by_paragraphs(content, safe_tokens)
                 print(f"📄 Found {len(paragraphs)} paragraphs", flush=True)
                 
                 # Group paragraphs by token limits
@@ -773,7 +942,7 @@ def process_markdown_file(input_path, output_path):
                     time.sleep(1.0)  # Longer delay between requests
                 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
-                translated_content = '\n\n'.join(translated_chunks)
+                translated_content = smart_join_chunks(translated_chunks)
                 
                 # Final validation and fix for the entire document
                 translated_content = validate_and_fix_code_blocks(translated_content)
