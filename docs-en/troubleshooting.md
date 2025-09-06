@@ -1,8 +1,6 @@
-# Problem Solving Guide
+# Problem Solution Guide
 
-## Common Issues and Solutions When Using Ollama Document Translator
-
-This guide addresses typical problems encountered while using the Ollama Document Translator and provides corresponding solutions.
+This guide provides information on common issues that may arise when using the Ollama document translator, as well as solutions to those problems.
 
 ## Common Issues
 
@@ -10,92 +8,88 @@ This guide addresses typical problems encountered while using the Ollama Documen
 
 #### Symptoms
 ```
-❌ Error: Ollama server is not running.
+❌ Error: The Ollama server is not running.
 ❌ Connection refused: http://localhost:11434
 ```
 
-#### Solution Method
+#### Solutions
 
-```markdown
-1. **Check Ollama Server Status**:
-   ```bash
-   # Check Processes
-   ps aux | grep ollama
-   
-   # Check Service Status (Linux)
-   systemctl status ollama
-   ```
+1. **Check the status of the Ollama server**:
+```bash
 ```
 
-```markdown
-2. **Start Ollama Server**:
+# Process Verification
+ps aux | grep ollama
+
+# Checking Service Status (Linux)
+   systemctl status ollama
+
+2. **Starting the Ollama Server**:
    ```bash
-   # Run in background
+```
+
+# Background Execution
    ollama serve &
-   
-   # Or run in foreground
+
+# Or run it in the background
    ollama serve
    ```
-```
 
-```markdown
-3. **Port Check**:
+3. **Port checking**:
    ```bash
-   # Check if port 11434 is in use
+
+# Check if port 11434 is in use
    netstat -tulpn | grep 11434
    lsof -i :11434
-   ```
+
+4. **Firewall settings**:
+   ```bash
 ```
 
-```markdown
-4. **Firewall Configuration**:
-   ```bash
-   # Ubuntu/Debian
-   sudo ufw allow 11434
-   
-   # CentOS/RHEL
+# Ubuntu/Debian
+sudo ufw allow 11434
+
+# CentOS/RHEL
    sudo firewall-cmd --add-port=11434/tcp --permanent
    sudo firewall-cmd --reload
    ```
-```
 
 ### 2. Model Download Failure
 
 #### Symptoms
 ```
-❌ Model 'exaone3.5:7.8b' not found.
+❌ The model 'exaone3.5:7.8b' cannot be found.
 ❌ Failed to pull model: network timeout
 ```
 
-#### Solution Method
+#### Solutions
 
-1. **Check Internet Connection**:
+1. **Check Internet connection**:
    ```bash
    curl -I https://ollama.com
    ```
 
-2. **Manually Download the Model**:
+2. **Download the model manually**:
    ```bash
-   # Force Redownload the Model
+
+# Forced Re-download of Models
    ollama rm exaone3.5:7.8b
    ollama pull exaone3.5:7.8b
    ```
 
-```markdown
-3. **Proxy Settings** (Company Network):
+3. **Proxy Settings** (for company network):
    ```bash
    export HTTP_PROXY=http://proxy.company.com:8080
    export HTTPS_PROXY=http://proxy.company.com:8080
    ollama pull exaone3.5:7.8b
    ```
-```
 
-4. **Check Disk Space**:
+4. **Checking Disk Space**:
    ```bash
    df -h ~/.ollama/models
    ```
 
-### 3. Failure in GitHub Actions Workflow
+### 3. GitHub Actions Workflow Failure
 
 #### Symptoms
 ```
@@ -103,69 +97,72 @@ This guide addresses typical problems encountered while using the Ollama Documen
 ❌ Permission denied
 ```
 
-#### Solution Method
+#### Solutions
 
-```markdown
-1. **Self-hosted Runner Verification**:
+1. **Check the Self-hosted Runner**:
    ```bash
-   # Check Runner Status
+
+# Checking Runner Status
    ./run.sh --check
-   
-   # Restart Runner
+
+# Restarting Runner
    ./run.sh
    ```
-```
 
 2. **Docker Permission Issues** (Linux):
    ```bash
-   # Add user to the docker group
-   sudo usermod -aG docker $USER
-   
-   # Requires logging out and logging back in
-   newgrp docker
-   ```
 
-3. **Token Authorization Verification**:
-   - Repository Settings → Actions → General
-   - Select "Read and write permissions" under "Workflow permissions"
+# Add the user to the docker group
+sudo usermod -aG docker $USER
 
-### 4. Translation Quality Issues
+# Re-login required after logging out
+newgrp docker
+```
+
+3. **Checking token permissions:**
+- Repository Settings → Actions → General
+- Select “Read and write permissions” under “Workflow permissions”
+
+### 4. Translation quality issues
 
 #### Symptoms
 - Inaccurate or inconsistent translations
-- Broken Markdown formatting
-- Incorrect translation of specialized terminology
+- Corruption of markdown format
+- Incorrect translation of technical terms
 
-#### Solution Method
+#### Solutions
 
-```markdown
-1. **Temperature Adjustment**:
+1. **Adjusting the temperature setting:**
    ```yaml
    temperature: 0.1  # For more consistent translations
    ```
 
-```yaml
-model: 'exaone3.5:32b'  # Use a Larger Model for Improved Accuracy
-```
+2. **Using a larger model:**
+   ```yaml
+   model: 'exaone3.5:32b'  # For more accurate translations
+   ```
 
-```python
-# Adjust chunk size in entrypoint.py
-chunks = content.split('\n\n')  # By paragraph
-# Alternatively
-chunks = content.split('\n')   # By line
-```
+3. **Adjusting the chunk size:**
+   ```python
 
-```python
-prompt = f"""Translate the following Korean technical document into English. 
-Maintain Markdown format precisely and keep technical terms in the original language.
+# Modifications in entrypoint.py
+chunks = content.split('\n\n')  # Paragraphs separated by newline lines
 
-Korean Text:
-{text}
+# Or
+   chunks = content.split('\n')    # Line-by-line splitting
 
-English Translation:"""
-```
+4. **Prompt Improvement**:
+   ```python
+   prompt = f"""Please translate the following Korean technical document into English.
+   Maintain the markdown format accurately, and keep the technical terms as they are in the original text.
 
-### 5. Memory Insufficient Error
+   Korean Text:
+   {text}
+
+   English Translation: """
+   ```
+
+### 5. Out of Memory Error
 
 #### Symptoms
 ```
@@ -173,28 +170,33 @@ English Translation:"""
 ❌ Model failed to load
 ```
 
-#### Solution Method
+#### Solutions
 
-1. **System Memory Check**:
+1. **Check system memory**:
    ```bash
    free -h
    htop
    ```
 
-```yaml
-model: 'mistral:7b'  # Uses less memory
-```
-
-**3. Add Swap Memory** (Linux):
-   ```bash
-   # Create a 4GB swap file
-   sudo fallocate -l 4G /swapfile
-   sudo chmod 600 /swapfile
-   sudo mkswap /swapfile
-   sudo swapon /swapfile
+2. **Use a smaller model**:
+   ```yaml
+   model: 'mistral:7b'  # Uses less memory
    ```
 
+3. **Add swap memory** (Linux):
+   ```bash
+```
+
+# Creating a 4GB swap file
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
+4. **Docker memory limits**:
 ```yaml
+
 # docker-compose.yml
 services:
   ollama:
@@ -202,7 +204,6 @@ services:
       resources:
         limits:
           memory: 8G
-```
 
 ### 6. Failure to Create a Pull Request
 
@@ -212,72 +213,73 @@ services:
 ❌ GitHub CLI not found
 ```
 
-#### Solution Method
+#### Solutions
 
-```markdown
-1. **Installation of GitHub CLI**:
+1. **Install GitHub CLI**:
    ```bash
-   # Ubuntu/Debian
-   sudo apt install gh
-   
-   # macOS
-   brew install gh
-   
-   # Windows
-   winget install GitHub.cli
-   ```
 ```
 
-2. **Authentication Setup**:
+# Ubuntu/Debian
+sudo apt install gh
+
+# macOS
+brew install gh
+
+# Windows
+   winget install GitHub.cli
+
+2. **Authentication Settings:**
    ```bash
    gh auth login
    ```
 
-3. **Token Authorization Check**:
-   - Verify repo permissions under Personal access tokens
+3. **Checking Token Permissions:**
+   - Verify repo permissions from the Personal access tokens section.
 
-```yaml
-create-pr: false
-```
+4. **Disabling Manual PR Creation:**
+   ```yaml
+   create-pr: false
+   ```
 
 ### 7. File Encoding Issues
 
-#### Symptoms
+#### Symptoms:
 ```
 ❌ UnicodeDecodeError
-❌ Hangul characters displayed incorrectly
+❌ Korean text is displayed incorrectly.
 ```
 
-#### Solution Method
+#### Solutions:
 
+1. **Check File Encoding:**
+   ```bash
+   file -i docs/*.md
+   ```
+
+2. **Convert to UTF-8:**
+   ```bash
+   ```
+   convert files to UTF-8 encoding.
+   ```
+```
+
+# Convert files to UTF-8 format
+iconv -f EUC-KR -t UTF-8 input.md > output.md
+
+3. **Remove the BOM (if necessary):**
 ```bash
-file -i docs/*.md
+sed -i '1s/^\xEF\xBB\xBF/' *.md
 ```
-
-2. **Convert to UTF-8**:
-   ```bash
-   # Convert file to UTF-8 encoding
-   iconv -f EUC-KR -t UTF-8 input.md > output.md
-   ```
-
-3. **Remove BOM** (if necessary):
-   ```bash
-   sed -i '1s/^\xEF\xBB\xBF//' *.md
-   ```
 
 ## Performance Optimization Tips
 
-### 1. Enhancing Translation Speed
+### 1. Improving Translation Speed
 
-```yaml
 # Enable Parallel Processing
 max-parallel: 3
-```
 
 # Skip Existing Files
-```markdown
 skip-existing: true
-```
 
 # Using a Faster Model
 model: 'mistral:7b'
@@ -285,83 +287,79 @@ model: 'mistral:7b'
 ### 2. Resource Monitoring
 
 ```bash
+```
+
 # System Resource Monitoring
 htop
 iostat -x 1
-nvidia-smi  # When using GPU
-```
+nvidia-smi  # When using a GPU
 
-### 3. Adjust Log Levels
+### 3. Adjusting Log Levels
 
 ```yaml
+```
+
 # Disable Debug Mode (Production)
 debug: false
 verbose: false
-```
 
 ## Debugging Tools
 
 ### 1. Log Collection
 
 ```bash
-# Checking Ollama Logs
-journalctl -u ollama -f
 ```
+
+# Checking Ollama logs
+journalctl -u ollama -f
 
 # Docker Logs
-```bash
 docker logs ollama-container
-```
 
-# Download GitHub Actions Logs
-```
+# Downloading GitHub Actions logs
 gh run download <run-id>
-```
 
-### 2. Direct API Testing
+### 2. Direct testing of the API
 
 ```bash
-# Direct Call to Ollama API
+```
+
+# Direct Call to the Ollama API
 curl -X POST http://localhost:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{
     "model": "exaone3.5:7.8b",
-    "prompt": "Translate '안녕하세요' to English",
+    "prompt": "Translate 'Hello' into English",
     "stream": false
   }'
 ```
 
-### 3. Network Diagnostics
+### 3. Network Diagnosis
 
 ```bash
+
 # Network Connection Test
 telnet localhost 11434
-```
 
-# DNS Resolution Check
-```
+# Checking DNS Resolution
 nslookup ollama.com
-```
 
-## Request Support
+## Requesting Support
 
-```
-If the problem persists:
-```
+If the issue is not resolved:
 
-```markdown
-1. **Issue Template Creation**:
+1. **Create an Issue Template**:
    - Operating System and Version
    - Ollama Version
-   - Used Model
-   - Error Messages
-   - Reproduction Steps
-```
+   - Model Used
+   - Error Message
+   - Steps to Replicate the Issue
 
-```markdown
 2. **Attach Logs**:
    ```bash
-   # Collect Relevant Logs
+```
+
+# Related log collection
    ollama serve > ollama.log 2>&1
    ```
 
@@ -371,17 +369,24 @@ If the problem persists:
 4. **Community Forum**:
    - [Ollama Discord](https://discord.gg/ollama)
    - [GitHub Discussions](https://github.com/your-username/ollama-doc-translator/discussions)
+```
 
 ## Frequently Asked Questions (FAQ)
 
-### Q: Why is translation so slow? How can I speed it up?
-A: Use a GPU, opt for a smaller model, or run on a Self-hosted runner.
+### Q: The translation is too slow; how can I make it faster?
+A: You can use a GPU, switch to a smaller model, or run it on a self-hosted runner.
 
-### Q: How do you keep specific terms untranslated?
-A: Add instructions in the prompt like "Maintain technical terms in their original language."
+### Q: How do I keep certain terms untranslated and retain their original form?
+A: Add instructions to your prompt, such as “Maintain technical terms in their original language.”
 
-### Q: Can translations be done simultaneously in multiple languages?
-A: Currently, only Korean-English translation is supported, but multiple languages can be processed sequentially using a matrix strategy.
+### Q: Is it possible to translate multiple languages simultaneously?
+A: Currently, only Korean-English translation is supported, but with a matrix strategy, it’s possible to process multiple languages sequentially.
 
-### Q: Does it work with private repositories as well?
-A: Yes, it is usable with private repositories by using a Personal Access Token.
+### Q: Does it work on private repositories as well?
+A: Yes, it can be used on private repositories as well with the use of a Personal Access Token.
+
+---
+
+> **⚠️ 이 문서는 AI로 번역된 문서입니다.**
+>
+> **⚠️ This document has been translated by AI.**
