@@ -133,6 +133,8 @@ def translate_with_ollama(text, retries=0):
     system_prompt = "You are a professional translator that translates Korean markdown documents to English while preserving all markdown syntax and structure."
     prompt = f"""Translate the following Korean markdown document to English according to the instructions below.
 - Change only Korean text to English, keep all markdown syntax intact.
+- Preserve ALL numbers in numbered lists exactly as they appear (e.g., "- 288. 텍스트" → "- 288. text").
+- Keep bullet points, numbering, and list formatting identical to the original.
 - Don't add any extra explanations or comments. ("Here is the translation:" etc.)
 
 Korean Markdown Document:
