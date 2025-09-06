@@ -31,6 +31,11 @@ on:
         required: false
         default: '📚 Update English documentation translations'
         type: string
+      llm_model:
+        description: 'Target LLM model'
+        required: false
+        default: 'exaone3.5:7.8b'
+        type: string
 permissions:
   contents: write
   pull-requests: write
@@ -74,7 +79,7 @@ jobs:
       uses: ./  # Use the local action
       with:
         ollama-url: 'http://localhost:11434'
-        model: 'exaone3.5:7.8b'
+        model: ${{ inputs.llm_model }}
         context-length: 4096
         source-dir: 'docs'
         target-dir: 'docs-en'
