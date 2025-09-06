@@ -451,7 +451,7 @@ def main():
     """Main function"""
     if len(sys.argv) != 2:
         print("Usage: python debug_chunking_standalone.py <markdown_file>")
-        print("Example: python debug_chunking_standalone.py docs/mega-token-example.md")
+        print("Example: python debug_chunking_standalone.py docs/mega-token-example-완성도높음.md")
         sys.exit(1)
     
     file_path = sys.argv[1]

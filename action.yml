@@ -91,6 +91,11 @@ inputs:
     description: 'Enable SSL certificate verification'
     required: false
     default: 'true'
+  
+  debug-mode:
+    description: 'Enable debug mode to save chunk files'
+    required: false
+    default: 'false'
 
 outputs:
   translated-files:
@@ -171,5 +176,6 @@ runs:
         INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
         INPUT_SSL_VERIFY: ${{ inputs.ssl-verify }}
         INPUT_CONTEXT_LENGTH: ${{ inputs.context-length }}
+        INPUT_DEBUG_MODE: ${{ inputs.debug-mode }}
       run: |
         python "${{ github.action_path }}/entrypoint.py"
