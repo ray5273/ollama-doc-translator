@@ -64,7 +64,7 @@ jobs:
       uses: ./  # Use the local action
       with:
         ollama-url: 'http://localhost:11434'
-        model: 'huihui_ai/hunyuan-mt-abliterated:7b-chimera'
+        model: 'huihui_ai/hunyuan-mt-abliterated:7b-chimera-q8_0'
         context-length: 4096
         source-dir: 'docs'
         target-dir: 'docs-en'
