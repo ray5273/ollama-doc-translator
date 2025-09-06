@@ -109,6 +109,22 @@ def pull_model():
         log(f"Failed to pull model: {str(e)}")
         return False
 
+def validate_and_fix_code_blocks(text: str) -> str:
+    """Validate and fix unclosed code blocks in markdown text"""
+    if not text:
+        return text
+        
+    # Count opening and closing code blocks
+    opening_blocks = text.count('```')
+    
+    # If odd number of ```, we have an unclosed block
+    if opening_blocks % 2 == 1:
+        print(f"🔧 Detected unclosed code block, adding closing ```", flush=True)
+        # Add closing code block at the end
+        text = text.rstrip() + '\n```'
+    
+    return text
+
 def translate_with_ollama(text, retries=0):
     """Translate text using Ollama API with retry logic"""
     if retries >= MAX_RETRIES:
@@ -126,6 +142,7 @@ def translate_with_ollama(text, retries=0):
     - HTML/XML tags.
 4.  **No Extra Formatting:** Do not add or remove any markdown elements. Do not introduce new formatting.
 5.  **Output Only Translation:** Your response must contain ONLY the translated markdown content and nothing else. Do not add introductory phrases like "Here is the English translation:".
+6.  **Complete Code Blocks:** If the input contains code blocks (```), ensure ALL code blocks are properly closed with ```. Never leave a code block unclosed.
 
 
 Korean Markdown Document:
@@ -180,6 +197,9 @@ English Markdown Document:"""
             if translated.lower().startswith(prefix.lower()):
                 translated = translated[len(prefix):].strip()
                 break
+        
+        # Validate and fix code blocks BEFORE final checks
+        translated = validate_and_fix_code_blocks(translated)
         
         # If cleaned result is empty, fall back to original input
         if not translated or translated.isspace():
@@ -754,14 +774,21 @@ def process_markdown_file(input_path, output_path):
                 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
                 translated_content = '\n\n'.join(translated_chunks)
+                
+                # Final validation and fix for the entire document
+                translated_content = validate_and_fix_code_blocks(translated_content)
             else:
                 # File is small enough, process as single chunk
                 print(f"📄 Processing entire file as one chunk ({total_tokens} tokens, limit: {safe_tokens})...", flush=True)
                 translated_content = translate_with_ollama(content)
+                # Validate single chunk as well
+                translated_content = validate_and_fix_code_blocks(translated_content)
         else:
             # No context length limit, process entire file
             print(f"📄 Processing entire file as one chunk (no context limit)...", flush=True)
             translated_content = translate_with_ollama(content)
+            # Validate no-context-limit case as well
+            translated_content = validate_and_fix_code_blocks(translated_content)
         
         # Create output directory
         output_path.parent.mkdir(parents=True, exist_ok=True)
