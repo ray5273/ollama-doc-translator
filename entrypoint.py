@@ -109,26 +109,46 @@ def pull_model():
         log(f"Failed to pull model: {str(e)}")
         return False
 
+def validate_and_fix_code_blocks(text: str) -> str:
+    """Validate and fix unclosed code blocks in markdown text"""
+    if not text:
+        return text
+        
+    # Count opening and closing code blocks
+    opening_blocks = text.count('```')
+    
+    # If odd number of ```, we have an unclosed block
+    if opening_blocks % 2 == 1:
+        print(f"🔧 Detected unclosed code block, adding closing ```", flush=True)
+        # Add closing code block at the end
+        text = text.rstrip() + '\n```'
+    
+    return text
+
 def translate_with_ollama(text, retries=0):
     """Translate text using Ollama API with retry logic"""
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     system_prompt = "당신은 한국어 마크다운 문서를 영어로 번역하는 전문 기술 번역가입니다."
-    prompt = f"""다음 한국어 마크다운 문서를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
+    prompt = f"""**## CRITICAL INSTRUCTIONS - FOLLOW STRICTLY ##**
 
-- 마크다운 형식과 구조를 절대 변경하지 마세요
-- ```json, ```yaml, ```python, ```bash, ```mermaid 등 모든 코드 블록 태그를 절대 제거하지 마세요
-- ```로 시작하고 ```로 끝나는 모든 코드 블록은 태그 포함해서 완전히 그대로 유지하세요
-- 코드 블록, 인라인 코드(`...`), 링크, URL, 이미지 경로, 수식, Mermaid, HTML 주석은 절대 번역하거나 수정하지 마세요
-- 목록, 테이블, YAML의 구조와 들여쓰기를 그대로 유지하세요
-- 입력이 이미 영어이거나 한국어가 없다면 입력 그대로 반환하세요
-- 번역된 내용만 그대로 출력하세요. 어떤 설명이나 주석도 추가하지 마세요
+1.  **Preserve Structure:** All markdown syntax—including headings (`#`), lists (`-`, `1.`), code blocks (```), inline code (`...`), links (`[]()`), images, tables, blockquotes (`>`), and horizontal rules (`---`)—MUST be kept exactly as they are.
+2.  **Translate Content Only:** Only translate the human-readable Korean text.
+3.  **DO NOT Translate Non-Text Elements:**
+    - Code within fenced code blocks (```...```) and inline code (`...`).
+    - URLs, file paths, and technical identifiers.
+    - YAML Frontmatter.
+    - HTML/XML tags.
+4.  **No Extra Formatting:** Do not add or remove any markdown elements. Do not introduce new formatting.
+5.  **Output Only Translation:** Your response must contain ONLY the translated markdown content and nothing else. Do not add introductory phrases like "Here is the English translation:".
+6.  **Complete Code Blocks:** If the input contains code blocks (```), ensure ALL code blocks are properly closed with ```. Never leave a code block unclosed.
 
-한국어 마크다운 문서:
+
+Korean Markdown Document:
 {text}
 
-영어 마크다운 문서:"""
+English Markdown Document:"""
     
     payload = {
         "model": MODEL,
@@ -177,6 +197,9 @@ def translate_with_ollama(text, retries=0):
             if translated.lower().startswith(prefix.lower()):
                 translated = translated[len(prefix):].strip()
                 break
+        
+        # Validate and fix code blocks BEFORE final checks
+        translated = validate_and_fix_code_blocks(translated)
         
         # If cleaned result is empty, fall back to original input
         if not translated or translated.isspace():
@@ -751,14 +774,21 @@ def process_markdown_file(input_path, output_path):
                 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
                 translated_content = '\n\n'.join(translated_chunks)
+                
+                # Final validation and fix for the entire document
+                translated_content = validate_and_fix_code_blocks(translated_content)
             else:
                 # File is small enough, process as single chunk
                 print(f"📄 Processing entire file as one chunk ({total_tokens} tokens, limit: {safe_tokens})...", flush=True)
                 translated_content = translate_with_ollama(content)
+                # Validate single chunk as well
+                translated_content = validate_and_fix_code_blocks(translated_content)
         else:
             # No context length limit, process entire file
             print(f"📄 Processing entire file as one chunk (no context limit)...", flush=True)
             translated_content = translate_with_ollama(content)
+            # Validate no-context-limit case as well
+            translated_content = validate_and_fix_code_blocks(translated_content)
         
         # Create output directory
         output_path.parent.mkdir(parents=True, exist_ok=True)
