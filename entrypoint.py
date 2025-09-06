@@ -38,6 +38,7 @@ TEMPERATURE = float(os.getenv('INPUT_TEMPERATURE', '0.3'))
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', '3'))
 SSL_VERIFY = os.getenv('INPUT_SSL_VERIFY', 'true').lower() == 'true'
 CONTEXT_LENGTH = int(os.getenv('INPUT_CONTEXT_LENGTH') or '32768')
+DEBUG_MODE = os.getenv('INPUT_DEBUG_MODE', 'true').lower() == 'true'
 
 def log(message):
     """Print log message with timestamp"""
@@ -113,7 +114,7 @@ def translate_with_ollama(text, retries=0):
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
-    system_prompt = "You are a professional Korean→English technical translator."
+    system_prompt = "당신은 한국어 마크다운 문서를 영어로 번역하는 전문 기술 번역가입니다."
     prompt = f"""다음 한국어 마크다운 문서를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
 
 - 마크다운 형식과 구조를 절대 변경하지 마세요
@@ -135,7 +136,7 @@ def translate_with_ollama(text, retries=0):
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": 0.6,
+            "temperature": TEMPERATURE,
             "top_k": 20,
             "top_p": 0.6,
             "repetition_penalty":1.05
@@ -529,8 +530,86 @@ def save_debug_chunks(input_path: str, chunks: list, debug_dir: str = "debug_chu
                 preview += "..."
             f.write(f"| {i+1:03d} | {count_tokens(chunk)} | {len(chunk)} | {preview} |\n")
     
-    print(f"🐛 Debug files saved to: {debug_path}/", flush=True)
-    print(f"   📁 {len(chunks)} chunk files + 1 summary file", flush=True)
+    if DEBUG_MODE:
+        print(f"🐛 Debug files saved to: {debug_path}/", flush=True)
+        print(f"   📁 {len(chunks)} chunk files + 1 summary file", flush=True)
+
+def save_debug_translation(input_path: str, chunk_index: int, original_chunk: str, translated_chunk: str):
+    """Save original and translated chunks to separate debug directories for easy comparison"""
+    import os
+    from pathlib import Path
+    
+    # Create separate debug directories
+    original_dir = Path("debug_originals")
+    translated_dir = Path("debug_translations")
+    comparison_dir = Path("debug_comparisons")
+    
+    original_dir.mkdir(exist_ok=True)
+    translated_dir.mkdir(exist_ok=True)
+    comparison_dir.mkdir(exist_ok=True)
+    
+    # Get base filename
+    base_name = Path(input_path).stem
+    
+    # Save original chunk with metadata
+    original_file = original_dir / f"{base_name}_original_{chunk_index+1:03d}.md"
+    original_metadata = f"""<!-- ORIGINAL CHUNK {chunk_index+1} -->
+<!-- Tokens: {count_tokens(original_chunk)} -->
+<!-- Characters: {len(original_chunk)} -->
+<!-- Source: {input_path} -->
+
+---
+
+"""
+    
+    with open(original_file, 'w', encoding='utf-8') as f:
+        f.write(original_metadata + original_chunk)
+    
+    # Save translated chunk with metadata
+    translated_file = translated_dir / f"{base_name}_translated_{chunk_index+1:03d}.md"
+    translated_metadata = f"""<!-- TRANSLATED CHUNK {chunk_index+1} -->
+<!-- Tokens: {count_tokens(translated_chunk)} -->
+<!-- Characters: {len(translated_chunk)} -->
+<!-- Source: {input_path} -->
+
+---
+
+"""
+    
+    with open(translated_file, 'w', encoding='utf-8') as f:
+        f.write(translated_metadata + translated_chunk)
+    
+    # Save side-by-side comparison
+    comparison_file = comparison_dir / f"{base_name}_comparison_{chunk_index+1:03d}.md"
+    comparison_content = f"""# Translation Comparison - Chunk {chunk_index+1}
+
+## Original (Korean)
+**File:** `debug_originals/{base_name}_original_{chunk_index+1:03d}.md`
+**Tokens:** {count_tokens(original_chunk)} | **Characters:** {len(original_chunk)}
+
+```markdown
+{original_chunk}
+```
+
+## Translated (English) 
+**File:** `debug_translations/{base_name}_translated_{chunk_index+1:03d}.md`
+**Tokens:** {count_tokens(translated_chunk)} | **Characters:** {len(translated_chunk)}
+
+```markdown
+{translated_chunk}
+```
+
+## Analysis
+- **Token Change:** {count_tokens(original_chunk)} → {count_tokens(translated_chunk)} ({count_tokens(translated_chunk) - count_tokens(original_chunk):+d})
+- **Character Change:** {len(original_chunk)} → {len(translated_chunk)} ({len(translated_chunk) - len(original_chunk):+d})
+- **Source:** {input_path}
+"""
+    
+    with open(comparison_file, 'w', encoding='utf-8') as f:
+        f.write(comparison_content)
+    
+    if DEBUG_MODE:
+        print(f"   🐛 Saved debug files for chunk {chunk_index+1} (original/translated/comparison)", flush=True)
 
 def group_paragraphs_by_tokens(paragraphs: list, safe_tokens: int) -> list:
     """Group paragraphs by token limits with aggressive splitting - maintains order"""
@@ -640,7 +719,8 @@ def process_markdown_file(input_path, output_path):
                     print(f"   Chunk {i+1}: {tokens} tokens ({len(chunk)} chars)", flush=True)
                 
                 # Save debug files for inspection
-                save_debug_chunks(input_path, chunks)
+                if DEBUG_MODE:
+                    save_debug_chunks(input_path, chunks)
                 
                 translated_chunks = []
                 
@@ -652,15 +732,21 @@ def process_markdown_file(input_path, output_path):
                     if chunk_tokens > safe_tokens * 1.2:  # 20% tolerance
                         print(f" ⚠️ Chunk still too large ({chunk_tokens} tokens), using original", flush=True)
                         translated_chunks.append(chunk)  # Keep original content
+                        if DEBUG_MODE:
+                            save_debug_translation(input_path, i, chunk, chunk)  # Save original as translation
                         continue
                     
                     translated_chunk = translate_with_ollama(chunk)
                     if translated_chunk:
                         translated_chunks.append(translated_chunk)
                         print(f" ✅ Done ({len(translated_chunk)} chars)", flush=True)
+                        if DEBUG_MODE:
+                            save_debug_translation(input_path, i, chunk, translated_chunk)
                     else:
                         print(f" ⚠️ Empty result, using original", flush=True)
                         translated_chunks.append(chunk)  # Fallback to original
+                        if DEBUG_MODE:
+                            save_debug_translation(input_path, i, chunk, chunk)  # Save original as fallback
                     time.sleep(1.0)  # Longer delay between requests
                 
                 print(f"📝 Joining {len(translated_chunks)} translated chunks...", flush=True)
@@ -826,7 +912,7 @@ Please review the translations for accuracy and merge if they look good.
         # Create PR via GitHub API
         api_url = f"{api_base_url}/repos/{owner}/{repo}/pulls"
         pr_data = {
-            "title": PR_TITLE,
+            "title": generate_pr_title(),
             "body": pr_body,
             "head": branch_name,
             "base": BASE_BRANCH
@@ -875,6 +961,8 @@ Please review the translations for accuracy and merge if they look good.
 def main():
     """Main execution function"""
     log("Starting Ollama Korean to English Translator")
+    if DEBUG_MODE:
+        log("🐛 Debug mode enabled - translation debug files will be saved")
     
     # Validate inputs
     if not os.path.exists(SOURCE_DIR):

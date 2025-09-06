@@ -21,6 +21,16 @@ on:
         required: false
         default: true
         type: boolean
+      debug_mode:
+        description: 'Enable debug mode to save chunk files'
+        required: false
+        default: false
+        type: boolean
+      pr_title:
+        description: 'Custom PR title'
+        required: false
+        default: '📚 Update English documentation translations'
+        type: string
 permissions:
   contents: write
   pull-requests: write
@@ -73,8 +83,9 @@ jobs:
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}
         ssl-verify: ${{ inputs.ssl_verify }}
+        debug-mode: ${{ inputs.debug_mode }}
         create-pr: true
-        pr-title: '📚 Update English documentation translations'
+        pr-title: ${{ inputs.pr_title }}
         pr-branch: 'auto-translate-${{ github.run_number }}'
         base-branch: 'main'
         commit-message: 'docs: Auto-translate Korean documents to English'
@@ -88,6 +99,18 @@ jobs:
         name: translated-docs-${{ github.run_number }}
         path: docs-en/
         retention-days: 30
+        if-no-files-found: warn
+
+    - name: Upload debug files as artifact
+      if: inputs.debug_mode && (steps.translate.outputs.translated-files != '0')
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-files-${{ github.run_number }}
+        path: |
+          debug_originals/
+          debug_translations/
+          debug_comparisons/
+        retention-days: 7
         if-no-files-found: warn
 
     - name: Translation Summary
@@ -106,7 +129,13 @@ jobs:
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.debug_mode }}" = "true" ]; then
+          echo "- **Debug files**: Uploaded as artifact 'debug-files-${{ github.run_number }}'" >> $GITHUB_STEP_SUMMARY
+        fi
+        
         echo "### 📋 Workflow Details" >> $GITHUB_STEP_SUMMARY
         echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Debug Mode**: ${{ inputs.debug_mode }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **PR Title**: ${{ inputs.pr_title }}" >> $GITHUB_STEP_SUMMARY
