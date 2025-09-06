@@ -93,16 +93,18 @@ jobs:
       id: translate
 
     - name: Upload translated files as artifact
-      if: steps.translate.outputs.translated-files != '0'
+      if: always()
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: translated-docs-${{ github.run_number }}
         path: docs-en/
         retention-days: 30
-        if-no-files-found: warn
+        if-no-files-found: ignore
 
     - name: Upload debug files as artifact
-      if: inputs.debug_mode && (steps.translate.outputs.translated-files != '0')
+      if: always() && inputs.debug_mode
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: debug-files-${{ github.run_number }}
@@ -111,7 +113,7 @@ jobs:
           debug_translations/
           debug_comparisons/
         retention-days: 7
-        if-no-files-found: warn
+        if-no-files-found: ignore
 
     - name: Translation Summary
       if: always()
