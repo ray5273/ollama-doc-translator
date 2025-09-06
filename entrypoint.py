@@ -912,7 +912,7 @@ Please review the translations for accuracy and merge if they look good.
         # Create PR via GitHub API
         api_url = f"{api_base_url}/repos/{owner}/{repo}/pulls"
         pr_data = {
-            "title": generate_pr_title(),
+            "title": PR_TITLE,
             "body": pr_body,
             "head": branch_name,
             "base": BASE_BRANCH
