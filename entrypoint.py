@@ -135,6 +135,8 @@ def translate_with_ollama(text, retries=0):
 - Change only Korean text to English, keep all markdown syntax intact.
 - Preserve ALL numbers in numbered lists exactly as they appear (e.g., "- 288. 텍스트" → "- 288. text").
 - Keep bullet points, numbering, and list formatting identical to the original.
+- IMPORTANT: Do NOT add **bold**, *italic*, or any formatting that wasn't in the original text.
+- Only translate text content, never modify or add markdown formatting.
 - Don't add any extra explanations or comments. ("Here is the translation:" etc.)
 
 Korean Markdown Document:
