@@ -113,18 +113,16 @@ def translate_with_ollama(text, retries=0):
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
-    
+    system_prompt = "You are a professional Korean→English technical translator."
     prompt = f"""다음 한국어 마크다운 문서를 영어로 번역해주세요. 다음 지침을 엄격히 따르세요:
 
 - 마크다운 형식과 구조를 절대 변경하지 마세요
+- ```json, ```yaml, ```python, ```bash, ```mermaid 등 모든 코드 블록 태그를 절대 제거하지 마세요
+- ```로 시작하고 ```로 끝나는 모든 코드 블록은 태그 포함해서 완전히 그대로 유지하세요
 - 코드 블록, 인라인 코드(`...`), 링크, URL, 이미지 경로, 수식, Mermaid, HTML 주석은 절대 번역하거나 수정하지 마세요
-- 코드 블록은 ```python, ```js 등 언어 태그 포함 그대로 유지하세요
-- 목록, 테이블, YAML 프론트매터의 구조와 들여쓰기를 그대로 유지하세요
+- 목록, 테이블, YAML의 구조와 들여쓰기를 그대로 유지하세요
 - 입력이 이미 영어이거나 한국어가 없다면 입력 그대로 반환하세요
-- 같은 용어는 문서 전체에서 일관되게 번역하세요
-- 번역 결과에 ```markdown, ````, "Here is translation:" 등의 추가 포맷팅이나 설명을 절대 추가하지 마세요
 - 번역된 내용만 그대로 출력하세요. 어떤 설명이나 주석도 추가하지 마세요
-- 문장이 잘린 경우, 불필요하게 추측하지 말고 잘린 부분까지만 충실히 번역하세요
 
 한국어 마크다운 문서:
 {text}
@@ -133,11 +131,14 @@ def translate_with_ollama(text, retries=0):
     
     payload = {
         "model": MODEL,
+        "system": system_prompt,
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": TEMPERATURE,
-            "top_p": 0.9
+            "temperature": 0.6,
+            "top_k": 20,
+            "top_p": 0.6,
+            "repetition_penalty":1.05
         }
     }
     
