@@ -107,14 +107,27 @@ def translate_with_ollama(text, retries=0):
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
     
-    prompt = f"""Translate the following segment into English, without additional explanation, without changing markdown format.
-    
+    prompt = f"""다음 한국어 마크다운 문서를 영어로 번역하세요.
+
+규칙:
+1. 원본의 마크다운 형식, 구조, 기호(`-`, `*`, `#`, 코드블록, 테이블, 링크, 수식 등)는 절대 변경하지 마세요.
+2. 코드블록(```python ... ```)과 인라인 코드(`...`)는 번역하거나 수정하지 마세요.
+3. 원본에 없는 기호, 문법, 문장은 추가하지 마세요.
+4. 원본에 있는 기호, 문법, 줄바꿈은 삭제하지 마세요.
+5. 한국어만 영어로 번역하세요. 이미 영어이거나 한국어가 없는 부분은 그대로 두세요.
+6. 출력의 줄 수와 순서는 입력과 동일해야 합니다.
+7. 불필요한 추가 설명(예: "Here is translation:")을 출력하지 마세요.
+
+
+한국어 마크다운 문서:
 {text}
+
+영어 마크다운 문서:
 """
     
     payload = {
         "model": MODEL,
-        "system":"You are a professional Korean→English technical translator.",
+        "system": "당신은 한국어 마크다운 문서를 영어로 번역하는 전문 기술 번역가입니다.",
         "prompt": prompt,
         "stream": False,
         "options": {
