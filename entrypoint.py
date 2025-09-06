@@ -114,6 +114,7 @@ def translate_with_ollama(text, retries=0):
     
     payload = {
         "model": MODEL,
+        "system":"You are a professional Korean→English technical translator.",
         "prompt": prompt,
         "stream": False,
         "options": {
