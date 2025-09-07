@@ -135,9 +135,9 @@ def translate_with_ollama(text, retries=0):
 - Change only Korean text to English, keep all markdown syntax intact.
 - Preserve ALL numbers in numbered lists exactly as they appear (e.g., "- 288. 텍스트" → "- 288. text").
 - Keep bullet points, numbering, and list formatting identical to the original.
-- IMPORTANT: Do NOT add **bold**, *italic*, or any formatting that wasn't in the original text.
+- IMPORTANT: Do NOT add **bold**, *italic*, or any formatting that wasn't in the original text. (e.g. " - 288. CORS" → "- 288. CORS")
 - Only translate text content, never modify or add markdown formatting.
-- Don't add any extra explanations or comments. ("Here is the translation:" etc.)
+- Don't add any extra explanations or comments. ("Here is the translation:", "Note: " etc.)
 
 Korean Markdown Document:
 {text}
@@ -239,6 +239,8 @@ def split_markdown_by_sections(content: str, max_tokens: int = None) -> list:
     heading_context = []  # Stack to track current heading hierarchy
     section_start_index = 0
     current_tokens = 0
+    in_code_block = False  # Track if we're inside a code block
+    code_block_fence = None  # Track the fence type (``` or ~~~)
     
     # Use a reasonable default if no max_tokens provided
     if max_tokens is None:
@@ -248,9 +250,20 @@ def split_markdown_by_sections(content: str, max_tokens: int = None) -> list:
         line_stripped = line.strip()
         line_tokens = count_tokens(line + '\n')
         
-        # Check if this line is a heading
+        # Check for code block fences
+        if line_stripped.startswith('```') or line_stripped.startswith('~~~'):
+            if not in_code_block:
+                # Starting a code block
+                in_code_block = True
+                code_block_fence = line_stripped[:3]  # Store fence type
+            elif line_stripped.startswith(code_block_fence):
+                # Ending a code block
+                in_code_block = False
+                code_block_fence = None
+        
+        # Check if this line is a heading (but not if we're inside a code block)
         heading_match = re.match(r'^(#+)\s+(.+)$', line_stripped)
-        if heading_match:
+        if heading_match and not in_code_block:
             level = len(heading_match.group(1))
             heading_text = heading_match.group(2)
             
@@ -297,7 +310,11 @@ def split_markdown_by_sections(content: str, max_tokens: int = None) -> list:
         else:
             # Regular content line
             # If adding this line would exceed token limit, finish current section
-            if current_section_lines and current_tokens + line_tokens > max_tokens:
+            # BUT don't break if we're inside a code block
+            if (current_section_lines and 
+                current_tokens + line_tokens > max_tokens and 
+                not in_code_block):
+                
                 # Finish current section
                 original_section = '\n'.join(lines[section_start_index:i])
                 if original_section.strip():
@@ -415,21 +432,35 @@ def calculate_safe_input_tokens(context_length: int) -> int:
     return int(remaining * input_ratio)
 
 def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
-    """Split lines while preserving markdown structure like headers"""
+    """Split lines while preserving markdown structure like headers and code blocks"""
     chunks = []
     current_chunk = []
     current_tokens = 0
+    in_code_block = False  # Track if we're inside a code block
+    code_block_fence = None  # Track the fence type (``` or ~~~)
     
     i = 0
     while i < len(lines):
         line = lines[i]
         line_tokens = count_tokens(line + '\n')
+        line_stripped = line.strip()
+        
+        # Check for code block fences
+        if line_stripped.startswith('```') or line_stripped.startswith('~~~'):
+            if not in_code_block:
+                # Starting a code block
+                in_code_block = True
+                code_block_fence = line_stripped[:3]  # Store fence type
+            elif line_stripped.startswith(code_block_fence):
+                # Ending a code block
+                in_code_block = False
+                code_block_fence = None
         
         # Check if this is a markdown header
-        is_header = line.strip().startswith('#') and line.strip() != ''
+        is_header = line_stripped.startswith('#') and line_stripped != ''
         
-        if is_header:
-            # For headers, try to include some content after it
+        if is_header and not in_code_block:
+            # For headers, try to include some content after it (but only if not in code block)
             header_chunk = [line]
             header_tokens = line_tokens
             
@@ -438,11 +469,13 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
             while j < len(lines) and header_tokens < max_tokens * 0.8:  # Use 80% to be safe
                 next_line = lines[j]
                 next_tokens = count_tokens(next_line + '\n')
+                next_line_stripped = next_line.strip()
                 
-                # Stop if we hit another header or exceed token limit
-                if next_line.strip().startswith('#') and next_line.strip() != '':
+                
+                # Stop if we hit another header or exceed token limit (but not if in code block)
+                if (next_line_stripped.startswith('#') and next_line_stripped != '' and not in_code_block):
                     break
-                if header_tokens + next_tokens > max_tokens * 0.8:
+                if header_tokens + next_tokens > max_tokens * 0.8 and not in_code_block:
                     break
                 
                 header_chunk.append(next_line)
@@ -460,12 +493,12 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
             i = j  # Skip the lines we've already included
             continue
         
-        # Regular line processing
-        if current_tokens + line_tokens <= max_tokens:
+        # Regular line processing - don't break if in code block
+        if current_tokens + line_tokens <= max_tokens or in_code_block:
             current_chunk.append(line)
             current_tokens += line_tokens
         else:
-            # Finalize current chunk
+            # Finalize current chunk (only if not in code block)
             if current_chunk:
                 chunks.append('\n'.join(current_chunk))
             current_chunk = [line]
