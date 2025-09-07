@@ -349,6 +349,150 @@ nslookup ollama.com
    - [Ollama Discord](https://discord.gg/ollama)
    - [GitHub Discussions](https://github.com/your-username/ollama-doc-translator/discussions)
 
+## 스마트 청킹 & 디버그 문제
+
+### 8. 대용량 문서 처리 문제
+
+#### 증상
+```
+❌ Context length exceeded
+❌ 청크가 너무 크게 생성됨
+❌ 번역이 중간에 끊어짐
+```
+
+#### 해결 방법
+
+1. **컨텍스트 길이 조정**:
+   ```yaml
+   context-length: 4096    # 기본값 32768보다 작게 설정
+   ```
+
+2. **디버그 모드로 청킹 분석**:
+   ```yaml
+   debug-mode: true
+   ```
+   
+   생성되는 파일들:
+   - `debug_chunks/`: 각 청크별 분석
+   - `debug_originals/`: 원본 청크들
+   - `debug_translations/`: 번역된 청크들
+
+3. **콘솔 출력 확인**:
+   ```bash
+   📦 Created 15 token-aware chunks:
+      Chunk 1: 1,156 tokens (2,845 chars)  # 토큰 수 확인
+   ```
+
+### 9. 코드 블록 손상 문제
+
+#### 증상
+```markdown
+# 원본
+```python
+def hello():
+    print("world")
+```
+
+# 번역 결과 (잘못된 경우)
+```python
+def hello():
+```
+print("world")
+```
+
+#### 해결 방법
+
+1. **디버그 비교 파일 확인**:
+   ```bash
+   debug_comparisons/filename_comparison_001.md
+   ```
+
+2. **섹션 기반 청킹 확인**:
+   - 코드 블록이 청크 중간에서 분할되지 않는지 확인
+   - H1-H3 헤딩 기반으로 청크가 올바르게 분리되는지 확인
+
+3. **번역 프롬프트 강화**:
+   현재 시스템은 이미 코드 블록 보존 로직을 포함하고 있습니다:
+   ```
+   - IMPORTANT: Do NOT add **bold**, *italic*, or any formatting that wasn't in the original text
+   - Only translate text content, never modify or add markdown formatting
+   ```
+
+### 10. 번역 품질 불일치 문제
+
+#### 증상
+```
+❌ 동일한 용어가 다르게 번역됨
+❌ 문체가 청크마다 달라짐
+❌ 번호 목록에서 번호가 사라짐
+```
+
+#### 해결 방법
+
+1. **Temperature 조정**:
+   ```yaml
+   temperature: 0.1        # 더 일관된 번역 (기본값: 0.3)
+   ```
+
+2. **재시도 횟수 증가**:
+   ```yaml
+   max-retries: 5         # 기본값: 3
+   ```
+
+3. **번역 비교 분석**:
+   ```bash
+   # 원본과 번역 비교
+   debug_comparisons/filename_comparison_001.md
+   ```
+
+4. **번호 목록 보존 확인**:
+   시스템은 다음 패턴을 보존하도록 설계됨:
+   ```markdown
+   # 원본
+   - 288. 캐시 무효화 시나리오
+   
+   # 번역 결과
+   - 288. Cache Invalidation Scenario
+   ```
+
+### 11. 디버그 파일 활용법
+
+#### 디버그 파일 구조 이해
+
+1. **청킹 분석** (`debug_chunks/`):
+   ```markdown
+   <!-- DEBUG CHUNK 1/15 -->
+   <!-- Tokens: 1,156 -->
+   <!-- Characters: 2,845 -->
+   <!-- Source: docs/api-guide.md -->
+   ```
+
+2. **번역 성능 분석**:
+   ```bash
+   📊 Translation Performance Summary:
+      ⏱️  Total time: 2m 34s
+      📄 Files processed: 12
+      🔄 Total chunks: 67
+      📈 Average chunk size: 1,089 tokens
+   ```
+
+3. **문제 패턴 식별**:
+   - 특정 청크에서 반복적으로 오류 발생
+   - 특정 토큰 범위에서 품질 저하
+   - 특정 마크다운 패턴에서 형식 손상
+
+#### 최적화 팁
+
+1. **적정 청크 크기**:
+   - 1,000-1,500 토큰: 최적 품질과 속도 균형
+   - 500-800 토큰: 높은 품질, 느린 속도  
+   - 2,000+ 토큰: 빠른 속도, 품질 저하 위험
+
+2. **섹션 기반 분할 활용**:
+   - H1-H2: 항상 분할 경계
+   - H3: 200 토큰 이상시 분할
+   - 코드 블록: 절대 분할하지 않음
+
 ## 자주 묻는 질문 (FAQ)
 
 ### Q: 번역이 너무 느린데 어떻게 빠르게 할 수 있나요?

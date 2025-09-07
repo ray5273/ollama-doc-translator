@@ -18,8 +18,8 @@ inputs:
     default: 'exaone3.5:7.8b'
 
   context-length:
-    description: 'Model context length for chunking (0 = no chunking)'
-    required: true
+    description: 'Model context length for smart chunking. Larger values allow bigger chunks but require more memory. Set to 0 to disable chunking entirely.'
+    required: false
     default: '32768'
   
   source-dir:
@@ -73,17 +73,17 @@ inputs:
     default: 'https://api.github.com'
   
   skip-existing:
-    description: 'Skip files that already exist and are newer'
+    description: 'Skip translation of files that already exist and are newer than the source file (based on modification time)'
     required: false
     default: 'true'
   
   temperature:
-    description: 'Model temperature (0.0-1.0)'
+    description: 'Model temperature (0.0-1.0). Lower values (0.1) produce more consistent translations, higher values (0.7) more creative but potentially inconsistent results.'
     required: false
     default: '0.3'
   
   max-retries:
-    description: 'Maximum number of retries for API calls'
+    description: 'Maximum number of retries for failed API calls before falling back to original text'
     required: false
     default: '3'
   
@@ -93,7 +93,7 @@ inputs:
     default: 'true'
   
   debug-mode:
-    description: 'Enable debug mode to save chunk files'
+    description: 'Enable debug mode to generate detailed chunking analysis and comparison files (debug_chunks/, debug_originals/, debug_translations/)'
     required: false
     default: 'false'
 

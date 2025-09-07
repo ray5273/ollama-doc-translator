@@ -10,12 +10,14 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 
 - **Automatic Translation**: Translate Korean markdown files to English automatically
 - **AI-Powered**: Uses Exaone3.5:7.8b model for high-quality translations  
-- **Smart Chunking**: Token-aware paragraph splitting with recursive optimization for large documents
-- **Debug & Analysis**: Built-in chunking analysis and debug file generation
-- **Customizable**: Configure source/target directories, models, and translation parameters
+- **Smart Chunking**: Section-aware splitting with code block preservation and semantic boundary detection
+- **Translation Quality**: Preserves numbered lists, prevents formatting corruption, maintains consistent terminology
+- **Debug & Analysis**: Comprehensive chunking analysis and debug file generation with side-by-side comparisons
+- **Code Block Protection**: Never splits code blocks across chunks, preserves all programming languages
+- **Customizable**: Configure source/target directories, models, translation parameters, and chunking strategies
 - **Auto PR Creation**: Automatically creates pull requests with translations
 - **Smart Skipping**: Skip files that are already translated and up-to-date
-- **Retry Logic**: Built-in retry mechanism for robust API calls
+- **Retry Logic**: Built-in retry mechanism with exponential backoff for robust API calls
 
 ## 📋 Prerequisites
 
@@ -56,14 +58,25 @@ jobs:
 - name: Translate with custom settings
   uses: ray5273/ollama-doc-translator@v1
   with:
+    # Server & Model Configuration
     ollama-url: 'http://localhost:11434'
     model: 'exaone3.5:7.8b'
+    context-length: 32768
+    
+    # Directory & File Settings  
     source-dir: 'korean-docs'
     target-dir: 'english-docs'
     file-pattern: '**/*.md'
-    temperature: 0.2
-    max-retries: 5
+    
+    # Translation Quality Settings
+    temperature: 0.2              # More consistent translations
+    max-retries: 5               # More robust error handling
     skip-existing: true
+    
+    # Debug & Analysis
+    debug-mode: true             # Generate debug files for analysis
+    
+    # PR Configuration
     create-pr: true
     pr-title: 'Auto-translated documentation update'
     pr-branch: 'auto-translation'
@@ -89,6 +102,7 @@ jobs:
 | `commit-message` | Commit message | No | `docs: Update English translations` |
 | `github-token` | GitHub token for PR creation | No | `${{ github.token }}` |
 | `context-length` | Model context length for chunking | No | `32768` |
+| `debug-mode` | Enable debug analysis files (chunks/originals/translations/comparisons) | No | `false` |
 
 ## 📤 Outputs
 
@@ -157,13 +171,22 @@ During translation, the system automatically generates debug files to help you u
 - **Debug chunks**: Individual `.md` files for each chunk with metadata headers
 - **Summary reports**: Overview of chunking process with token distribution
 
-Debug files are saved to `debug_chunks/` directory:
+Debug files are saved to multiple directories for comprehensive analysis:
 ```
-debug_chunks/
-├── filename_chunk_001.md          # Individual chunks with metadata
-├── filename_chunk_002.md
-├── ...
-└── filename_summary.md            # Chunking summary report
+your-repo/
+├── debug_chunks/                   # Chunking analysis
+│   ├── filename_chunk_001.md      # Individual chunks with token count
+│   ├── filename_chunk_002.md
+│   └── filename_summary.md        # Chunking summary report
+├── debug_originals/                # Original Korean chunks  
+│   ├── filename_original_001.md   # Source chunks before translation
+│   └── filename_original_002.md
+├── debug_translations/             # English translated chunks
+│   ├── filename_translated_001.md # Translated chunks after processing
+│   └── filename_translated_002.md  
+└── debug_comparisons/              # Side-by-side comparisons
+    ├── filename_comparison_001.md # Original vs translated analysis
+    └── filename_comparison_002.md
 ```
 
 ### Standalone Chunking Analysis
@@ -185,18 +208,34 @@ python debug_chunking_standalone.py docs/large-document.md
 - `*_analysis.md`: Comprehensive analysis report
 - `*_final_chunk_*.md`: Final optimized chunks
 
-### Token-Aware Chunking Strategy
+### Advanced Chunking Strategy
 
-The system uses sophisticated chunking logic:
+The system uses sophisticated section-aware chunking logic:
 
-1. **Paragraph Detection**: Split content by empty lines (`\n\n`) 
-2. **Token Calculation**: Accurate counting using tiktoken (fallback: char-based estimation)
-3. **Recursive Splitting**: Large paragraphs split by:
-   - Sentences (Korean/English punctuation)
-   - Lines (if sentences too long)
-   - Character splitting (last resort)
-4. **Optimization**: Small chunks regrouped within token limits
-5. **Context Awareness**: Uses 40% of context length for safety margin
+1. **Section-Based Splitting**: 
+   - H1-H2 headings: Always create split boundaries
+   - H3 headings: Split when content > 200 tokens
+   - Preserves semantic meaning and document structure
+
+2. **Code Block Preservation**: 
+   - Automatically detects ````python`, ````yaml`, ````bash` blocks
+   - Never splits code blocks across chunks
+   - Ignores `#` comments inside code blocks as headings
+
+3. **Smart Content Joining**: 
+   - Preserves numbered lists without extra line breaks
+   - Detects patterns like "- 288. Item" → "- 289. Item"
+   - Maintains proper markdown formatting
+
+4. **Translation Quality Enhancements**:
+   - Preserves ALL numbers in numbered lists exactly as they appear
+   - Prevents unauthorized bold/italic formatting additions
+   - Maintains consistent terminology across chunks
+
+5. **Token Calculation**: 
+   - Accurate counting using tiktoken (fallback: language-specific estimation)
+   - Korean chars: ~0.5 tokens, Code chars: ~0.8 tokens
+   - Context awareness: Uses 40% of context length for safety margin
 
 ## 🚀 Getting Started
 
