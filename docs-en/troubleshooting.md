@@ -1,8 +1,6 @@
 # Problem Solving Guide
 
-## Common Issues and Solutions When Using Ollama Document Translator
-
-This guide addresses typical problems encountered while using the Ollama Document Translator and provides corresponding solutions.
+This guide provides solutions to common issues encountered while using the Ollama document translator.
 
 ## Common Issues
 
@@ -14,20 +12,17 @@ This guide addresses typical problems encountered while using the Ollama Documen
 ❌ Connection refused: http://localhost:11434
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-```markdown
 1. **Check Ollama Server Status**:
    ```bash
-   # Check Processes
+   # Check processes
    ps aux | grep ollama
    
-   # Check Service Status (Linux)
+   # Check service status (Linux)
    systemctl status ollama
    ```
-```
 
-```markdown
 2. **Start Ollama Server**:
    ```bash
    # Run in background
@@ -36,18 +31,14 @@ This guide addresses typical problems encountered while using the Ollama Documen
    # Or run in foreground
    ollama serve
    ```
-```
 
-```markdown
 3. **Port Check**:
    ```bash
    # Check if port 11434 is in use
    netstat -tulpn | grep 11434
    lsof -i :11434
    ```
-```
 
-```markdown
 4. **Firewall Configuration**:
    ```bash
    # Ubuntu/Debian
@@ -57,45 +48,42 @@ This guide addresses typical problems encountered while using the Ollama Documen
    sudo firewall-cmd --add-port=11434/tcp --permanent
    sudo firewall-cmd --reload
    ```
-```
 
 ### 2. Model Download Failure
 
 #### Symptoms
 ```
-❌ Model 'exaone3.5:7.8b' not found.
+❌ Unable to find model 'exaone3.5:7.8b'.
 ❌ Failed to pull model: network timeout
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
 1. **Check Internet Connection**:
    ```bash
    curl -I https://ollama.com
    ```
 
-2. **Manually Download the Model**:
+2. **Manual Model Download**:
    ```bash
-   # Force Redownload the Model
+   # Force redownload the model
    ollama rm exaone3.5:7.8b
    ollama pull exaone3.5:7.8b
    ```
 
-```markdown
 3. **Proxy Settings** (Company Network):
    ```bash
    export HTTP_PROXY=http://proxy.company.com:8080
    export HTTPS_PROXY=http://proxy.company.com:8080
    ollama pull exaone3.5:7.8b
    ```
-```
 
 4. **Check Disk Space**:
    ```bash
    df -h ~/.ollama/models
    ```
 
-### 3. Failure in GitHub Actions Workflow
+### 3. GitHub Actions Workflow Failure
 
 #### Symptoms
 ```
@@ -103,67 +91,67 @@ This guide addresses typical problems encountered while using the Ollama Documen
 ❌ Permission denied
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-```markdown
-1. **Self-hosted Runner Verification**:
+1. **Check Self-hosted Runner**:
    ```bash
-   # Check Runner Status
+   # Check Runner status
    ./run.sh --check
    
    # Restart Runner
    ./run.sh
    ```
-```
 
 2. **Docker Permission Issues** (Linux):
    ```bash
-   # Add user to the docker group
+   # Add user to docker group
    sudo usermod -aG docker $USER
    
-   # Requires logging out and logging back in
+   # Re-login required
    newgrp docker
    ```
 
-3. **Token Authorization Verification**:
+3. **Token Permissions Verification**:
    - Repository Settings → Actions → General
    - Select "Read and write permissions" under "Workflow permissions"
 
 ### 4. Translation Quality Issues
 
 #### Symptoms
-- Inaccurate or inconsistent translations
-- Broken Markdown formatting
-- Incorrect translation of specialized terminology
+- Translation inaccuracies or inconsistencies
+- Markdown formatting issues
+- Incorrect translation of technical terms
 
-#### Solution Method
+#### Solutions
 
-```markdown
 1. **Temperature Adjustment**:
    ```yaml
-   temperature: 0.1  # For more consistent translations
+   temperature: 0.1  # For more consistent translation
    ```
 
-```yaml
-model: 'exaone3.5:32b'  # Use a Larger Model for Improved Accuracy
-```
+2. **Use a Larger Model**:
+   ```yaml
+   model: 'exaone3.5:32b'  # For more accurate translation
+   ```
 
-```python
-# Adjust chunk size in entrypoint.py
-chunks = content.split('\n\n')  # By paragraph
-# Alternatively
-chunks = content.split('\n')   # By line
-```
+3. **Adjust Chunk Size**:
+   ```python
+   # Modify in entrypoint.py
+   chunks = content.split('\n\n')  # By paragraph
+   # Or
+   chunks = content.split('\n')    # By line
+   ```
 
-```python
-prompt = f"""Translate the following Korean technical document into English. 
-Maintain Markdown format precisely and keep technical terms in the original language.
-
-Korean Text:
-{text}
-
-English Translation:"""
-```
+4. **Improve Prompt**:
+   ```python
+   prompt = f"""Translate the following Korean technical document into English. 
+   Ensure Markdown formatting is preserved exactly, and technical terms remain in the original language.
+   
+   Korean Text:
+   {text}
+   
+   English Translation:"""
+   ```
 
 ### 5. Memory Insufficient Error
 
@@ -173,19 +161,20 @@ English Translation:"""
 ❌ Model failed to load
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-1. **System Memory Check**:
+1. **Check System Memory**:
    ```bash
    free -h
    htop
    ```
 
-```yaml
-model: 'mistral:7b'  # Uses less memory
-```
+2. **Use a Smaller Model**:
+   ```yaml
+   model: 'mistral:7b'  # Uses less memory
+   ```
 
-**3. Add Swap Memory** (Linux):
+3. **Add Swap Memory** (Linux):
    ```bash
    # Create a 4GB swap file
    sudo fallocate -l 4G /swapfile
@@ -194,17 +183,18 @@ model: 'mistral:7b'  # Uses less memory
    sudo swapon /swapfile
    ```
 
-```yaml
-# docker-compose.yml
-services:
-  ollama:
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-```
+4. **Set Docker Memory Limits**:
+   ```yaml
+   # docker-compose.yml
+   services:
+     ollama:
+       deploy:
+         resources:
+           limits:
+             memory: 8G
+   ```
 
-### 6. Failure to Create a Pull Request
+### 6. Pull Request Creation Failure
 
 #### Symptoms
 ```
@@ -212,10 +202,9 @@ services:
 ❌ GitHub CLI not found
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-```markdown
-1. **Installation of GitHub CLI**:
+1. **Install GitHub CLI**:
    ```bash
    # Ubuntu/Debian
    sudo apt install gh
@@ -226,37 +215,38 @@ services:
    # Windows
    winget install GitHub.cli
    ```
-```
 
 2. **Authentication Setup**:
    ```bash
    gh auth login
    ```
 
-3. **Token Authorization Check**:
-   - Verify repo permissions under Personal access tokens
+3. **Verify Token Permissions**:
+   - Check repo permissions under Personal access tokens
 
-```yaml
-create-pr: false
-```
+4. **Disable Manual PR Creation**:
+   ```yaml
+   create-pr: false
+   ```
 
 ### 7. File Encoding Issues
 
 #### Symptoms
 ```
 ❌ UnicodeDecodeError
-❌ Hangul characters displayed incorrectly
+❌ Korean text displayed incorrectly
 ```
 
-#### Solution Method
+#### Solution Methods
 
-```bash
-file -i docs/*.md
-```
+1. **Check File Encoding**:
+   ```bash
+   file -i docs/*.md
+   ```
 
 2. **Convert to UTF-8**:
    ```bash
-   # Convert file to UTF-8 encoding
+   # Convert file to UTF-8
    iconv -f EUC-KR -t UTF-8 input.md > output.md
    ```
 
@@ -267,20 +257,18 @@ file -i docs/*.md
 
 ## Performance Optimization Tips
 
-### 1. Enhancing Translation Speed
+### 1. Improve Translation Speed
 
 ```yaml
 # Enable Parallel Processing
 max-parallel: 3
-```
 
 # Skip Existing Files
-```markdown
 skip-existing: true
-```
 
-# Using a Faster Model
+# Use Faster Model
 model: 'mistral:7b'
+```
 
 ### 2. Resource Monitoring
 
@@ -288,7 +276,7 @@ model: 'mistral:7b'
 # System Resource Monitoring
 htop
 iostat -x 1
-nvidia-smi  # When using GPU
+nvidia-smi  # For GPU usage
 ```
 
 ### 3. Adjust Log Levels
@@ -304,17 +292,13 @@ verbose: false
 ### 1. Log Collection
 
 ```bash
-# Checking Ollama Logs
+# Check Ollama Logs
 journalctl -u ollama -f
-```
 
 # Docker Logs
-```bash
 docker logs ollama-container
-```
 
 # Download GitHub Actions Logs
-```
 gh run download <run-id>
 ```
 
@@ -334,54 +318,53 @@ curl -X POST http://localhost:11434/api/generate \
 ### 3. Network Diagnostics
 
 ```bash
-# Network Connection Test
+# Test Network Connection
 telnet localhost 11434
-```
 
-# DNS Resolution Check
-```
+# Verify DNS Resolution
 nslookup ollama.com
 ```
 
-## Request Support
+## How to Request Support
 
-```
-If the problem persists:
-```
+If the issue is not resolved:
 
-```markdown
-1. **Issue Template Creation**:
-   - Operating System and Version
-   - Ollama Version
-   - Used Model
-   - Error Messages
-   - Reproduction Steps
-```
+1. **Create an Issue Template**:
+   - Operating system and version
+   - Ollama version
+   - Used model
+   - Error message
+   - Reproduction steps
 
-```markdown
 2. **Attach Logs**:
    ```bash
-   # Collect Relevant Logs
+   # Collect relevant logs
    ollama serve > ollama.log 2>&1
    ```
 
 3. **GitHub Issues**:
    - [https://github.com/your-username/ollama-doc-translator/issues](https://github.com/your-username/ollama-doc-translator/issues)
 
-4. **Community Forum**:
+4. **Community Forums**:
    - [Ollama Discord](https://discord.gg/ollama)
    - [GitHub Discussions](https://github.com/your-username/ollama-doc-translator/discussions)
 
 ## Frequently Asked Questions (FAQ)
 
 ### Q: Why is translation so slow? How can I speed it up?
-A: Use a GPU, opt for a smaller model, or run on a Self-hosted runner.
+A: Use a GPU, opt for a smaller model, or run it on a Self-hosted runner.
 
-### Q: How do you keep specific terms untranslated?
-A: Add instructions in the prompt like "Maintain technical terms in their original language."
+### Q: How do I keep specific terms untranslated?
+A: Add instructions like "Keep technical terms in the original text" to your prompt.
 
-### Q: Can translations be done simultaneously in multiple languages?
-A: Currently, only Korean-English translation is supported, but multiple languages can be processed sequentially using a matrix strategy.
+### Q: Is multi-language translation supported simultaneously?
+A: Currently, only Korean-English translation is supported, but you can sequentially process multiple languages using a matrix strategy.
 
-### Q: Does it work with private repositories as well?
+### Q: Does it work with private repositories?
 A: Yes, it is usable with private repositories by using a Personal Access Token.
+
+---
+
+> **⚠️ 이 문서는 AI로 번역된 문서입니다.**
+>
+> **⚠️ This document has been translated by AI.**
