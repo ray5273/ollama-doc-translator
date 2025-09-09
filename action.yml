@@ -37,6 +37,11 @@ inputs:
     required: false
     default: '**/*.md'
   
+  specific-files:
+    description: 'Specific files to translate (comma-separated list, overrides file-pattern if provided). Example: "docs/file1.md,docs/file2.md"'
+    required: false
+    default: ''
+  
   commit-message:
     description: 'Commit message for translated files'
     required: false
@@ -164,6 +169,7 @@ runs:
         INPUT_SOURCE_DIR: ${{ inputs.source-dir }}
         INPUT_TARGET_DIR: ${{ inputs.target-dir }}
         INPUT_FILE_PATTERN: ${{ inputs.file-pattern }}
+        INPUT_SPECIFIC_FILES: ${{ inputs.specific-files }}
         INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
         INPUT_CREATE_PR: ${{ inputs.create-pr }}
         INPUT_PR_TITLE: ${{ inputs.pr-title }}
