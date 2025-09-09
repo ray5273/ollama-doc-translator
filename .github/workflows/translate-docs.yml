@@ -36,6 +36,11 @@ on:
         required: false
         default: 'exaone3.5:7.8b'
         type: string
+      specific_files:
+        description: 'Specific files to translate (comma-separated). Example: "docs/file1.md,docs/file2.md". Leave empty to translate all files.'
+        required: false
+        default: ''
+        type: string
 permissions:
   contents: write
   pull-requests: write
@@ -84,6 +89,7 @@ jobs:
         source-dir: 'docs'
         target-dir: 'docs-en'
         file-pattern: '**/*.md'
+        specific-files: ${{ inputs.specific_files }}
         temperature: 0
         max-retries: 3
         skip-existing: ${{ !inputs.force_translate }}

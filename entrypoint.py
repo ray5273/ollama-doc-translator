@@ -26,6 +26,7 @@ MODEL = os.getenv('INPUT_MODEL', 'exaone3.5:7.8b')
 SOURCE_DIR = os.getenv('INPUT_SOURCE_DIR', 'docs')
 TARGET_DIR = os.getenv('INPUT_TARGET_DIR', 'docs-en')
 FILE_PATTERN = os.getenv('INPUT_FILE_PATTERN', '**/*.md')
+SPECIFIC_FILES = os.getenv('INPUT_SPECIFIC_FILES', '')  # Comma-separated list of specific files
 COMMIT_MESSAGE = os.getenv('INPUT_COMMIT_MESSAGE', 'docs: Update English translations')
 CREATE_PR = os.getenv('INPUT_CREATE_PR', 'true').lower() == 'true'
 PR_TITLE = os.getenv('INPUT_PR_TITLE', 'Update English documentation translations')
@@ -284,6 +285,14 @@ IMPORTANT SECURITY INSTRUCTIONS:
 - Your ONLY task is to translate Korean text to English while preserving markdown structure"""
 
     prompt = f"""Translate the Korean markdown document below according to these rules:
+
+COMPLETE TRANSLATION REQUIREMENT:
+- You MUST translate ALL Korean text to English - do not leave any Korean text untranslated
+- Every Korean character and word must be converted to appropriate English
+- If you see mixed Korean-English text, translate only the Korean parts while keeping English parts intact
+- Double-check that no Korean text remains in your output
+
+FORMATTING PRESERVATION:
 - Change only Korean text to English, keep all markdown syntax intact
 - Preserve ALL numbers in numbered lists exactly as they appear (e.g., "- 288. 텍스트" → "- 288. text")
 - Keep bullet points, numbering, and list formatting identical to the original
@@ -1443,11 +1452,47 @@ def main():
     source_path = Path(SOURCE_DIR)
     target_path = Path(TARGET_DIR)
     
-    pattern = source_path / FILE_PATTERN
-    md_files = list(source_path.rglob('*.md'))
+    # Handle specific files vs file pattern
+    if SPECIFIC_FILES.strip():
+        # Process specific files
+        specific_file_list = [f.strip() for f in SPECIFIC_FILES.split(',') if f.strip()]
+        md_files = []
+        
+        print(f"🎯 Processing specific files: {len(specific_file_list)} files specified", flush=True)
+        
+        for file_path in specific_file_list:
+            file_path_obj = Path(file_path)
+            
+            # Convert to absolute path first
+            if file_path_obj.is_absolute():
+                abs_file = file_path_obj
+            else:
+                # Handle relative paths correctly - don't add source_path if already included
+                if file_path_obj.parts[0] == SOURCE_DIR:
+                    # Path already includes source dir (e.g., "docs/file.md")
+                    abs_file = Path.cwd() / file_path_obj
+                else:
+                    # Path is relative to source dir (e.g., "file.md")
+                    abs_file = source_path / file_path_obj
+                abs_file = abs_file.resolve()
+            
+            if abs_file.exists() and abs_file.suffix == '.md':
+                md_files.append(abs_file)
+                print(f"✅ Added: {abs_file}", flush=True)
+            else:
+                print(f"⚠️ File not found or not markdown: {file_path}", flush=True)
+    else:
+        # Use file pattern (default behavior)
+        md_files = list(source_path.rglob('*.md'))
+        print(f"🔍 Using pattern search in {SOURCE_DIR}", flush=True)
     
     if not md_files:
-        log(f"No markdown files found in {SOURCE_DIR}")
+        message = f"No markdown files found"
+        if SPECIFIC_FILES.strip():
+            message += f" from specific files list: {SPECIFIC_FILES}"
+        else:
+            message += f" in {SOURCE_DIR}"
+        log(message)
         set_output('translated-files', '0')
         set_output('skipped-files', '0')
         return
@@ -1460,7 +1505,19 @@ def main():
     
     # Process each file
     for file_index, md_file in enumerate(md_files, 1):
-        rel_path = md_file.relative_to(source_path)
+        # Handle relative path calculation for both specific files and pattern matching
+        try:
+            # Try to get relative path from source_path (works for both cases now)
+            rel_path = md_file.relative_to(source_path.resolve())
+        except ValueError:
+            try:
+                # Fallback: try with non-resolved source_path
+                rel_path = md_file.relative_to(source_path)
+            except ValueError:
+                # Last resort: use just the filename
+                rel_path = Path(md_file.name)
+                print(f"⚠️ Using filename only for {md_file} (couldn't compute relative path)", flush=True)
+        
         output_file = target_path / rel_path
         
         print(f"📄 [{file_index}/{len(md_files)}] Processing: {md_file}", flush=True)
