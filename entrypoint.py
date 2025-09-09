@@ -621,12 +621,26 @@ def calculate_safe_input_tokens(context_length: int) -> int:
     return int(remaining * input_ratio)
 
 def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
-    """Split lines while preserving markdown structure like headers and code blocks"""
+    """Split lines while preserving markdown structure like headers, code blocks, and tables"""
     chunks = []
     current_chunk = []
     current_tokens = 0
     in_code_block = False  # Track if we're inside a code block
     code_block_fence = None  # Track the fence type (``` or ~~~)
+    in_table = False  # Track if we're inside a table
+    
+    def is_table_line(line_str):
+        """Check if a line is part of a markdown table"""
+        stripped = line_str.strip()
+        if not stripped:
+            return False
+        # Table rows start with | and contain |
+        if stripped.startswith('|') and stripped.count('|') >= 2:
+            return True
+        # Table separator line (like |-----|------|)
+        if '|' in stripped and all(c in '|-: ' for c in stripped):
+            return True
+        return False
     
     i = 0
     while i < len(lines):
@@ -645,11 +659,26 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
                 in_code_block = False
                 code_block_fence = None
         
+        # Check for table start/end (only if not in code block)
+        if not in_code_block:
+            is_current_table_line = is_table_line(line_stripped)
+            
+            # Table state management
+            if is_current_table_line and not in_table:
+                in_table = True
+            elif not is_current_table_line and in_table:
+                # Check if next line is also not a table line to confirm end
+                next_is_table = False
+                if i + 1 < len(lines):
+                    next_is_table = is_table_line(lines[i + 1].strip())
+                if not next_is_table:
+                    in_table = False
+        
         # Check if this is a markdown header
         is_header = line_stripped.startswith('#') and line_stripped != ''
         
-        if is_header and not in_code_block:
-            # For headers, try to include some content after it (but only if not in code block)
+        if is_header and not in_code_block and not in_table:
+            # For headers, try to include some content after it (but only if not in code block or table)
             header_chunk = [line]
             header_tokens = line_tokens
             
@@ -661,10 +690,10 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
                 next_line_stripped = next_line.strip()
                 
                 
-                # Stop if we hit another header or exceed token limit (but not if in code block)
-                if (next_line_stripped.startswith('#') and next_line_stripped != '' and not in_code_block):
+                # Stop if we hit another header or exceed token limit (but not if in code block or table)
+                if (next_line_stripped.startswith('#') and next_line_stripped != '' and not in_code_block and not in_table):
                     break
-                if header_tokens + next_tokens > max_tokens * 0.8 and not in_code_block:
+                if header_tokens + next_tokens > max_tokens * 0.8 and not in_code_block and not in_table:
                     break
                 
                 header_chunk.append(next_line)
@@ -682,12 +711,12 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
             i = j  # Skip the lines we've already included
             continue
         
-        # Regular line processing - don't break if in code block
-        if current_tokens + line_tokens <= max_tokens or in_code_block:
+        # Regular line processing - don't break if in code block or table
+        if current_tokens + line_tokens <= max_tokens or in_code_block or in_table:
             current_chunk.append(line)
             current_tokens += line_tokens
         else:
-            # Finalize current chunk (only if not in code block)
+            # Finalize current chunk (only if not in code block or table)
             if current_chunk:
                 chunks.append('\n'.join(current_chunk))
             current_chunk = [line]
