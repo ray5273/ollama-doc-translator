@@ -1522,12 +1522,18 @@ def main():
         
         print(f"📄 [{file_index}/{len(md_files)}] Processing: {md_file}", flush=True)
         
-        # Skip if file exists and is newer
-        if (SKIP_EXISTING and output_file.exists() and 
-            output_file.stat().st_mtime > md_file.stat().st_mtime):
+        # Skip if file exists and is newer (but never skip specific files)
+        should_skip = (SKIP_EXISTING and 
+                      not SPECIFIC_FILES.strip() and  # Never skip if specific files are specified
+                      output_file.exists() and 
+                      output_file.stat().st_mtime > md_file.stat().st_mtime)
+        
+        if should_skip:
             print(f"⏭️  Skipping {md_file} (translation is up to date)\n", flush=True)
             skipped_count += 1
             continue
+        elif SPECIFIC_FILES.strip() and output_file.exists():
+            print(f"🔄 Force translating {md_file} (specific file - ignoring existing translation)", flush=True)
         
         if process_markdown_file(md_file, output_file):
             translated_count += 1
