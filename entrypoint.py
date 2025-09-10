@@ -1227,6 +1227,19 @@ def process_markdown_file(input_path, output_path):
         # Create output directory
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
+        # Remove existing AI translation notices to prevent duplication
+        ai_notice_patterns = [
+            r'\n*---\n*\n*> \*\*⚠️ 이 문서는 AI로 번역된 문서입니다\.\*\*\n*>\n*> \*\*⚠️ This document has been translated by AI\.\*\*\n*',
+            r'\n*> \*\*⚠️ 이 문서는 AI로 번역된 문서입니다\.\*\*\n*>\n*> \*\*⚠️ This document has been translated by AI\.\*\*\n*',
+            r'\n*> \*\*⚠️ This document has been translated by AI\.\*\*\n*',
+        ]
+        
+        for pattern in ai_notice_patterns:
+            translated_content = re.sub(pattern, '', translated_content, flags=re.MULTILINE)
+        
+        # Clean up any trailing whitespace and ensure proper ending
+        translated_content = translated_content.rstrip()
+        
         # Add AI translation notice at the bottom
         ai_notice = "\n\n---\n\n> **⚠️ 이 문서는 AI로 번역된 문서입니다.**\n>\n> **⚠️ This document has been translated by AI.**"
         
