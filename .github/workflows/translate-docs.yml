@@ -85,7 +85,7 @@ jobs:
       with:
         ollama-url: 'http://localhost:11434'
         model: ${{ inputs.llm_model }}
-        context-length: 4096
+        context-length: 8192
         source-dir: 'docs'
         target-dir: 'docs-en'
         file-pattern: '**/*.md'

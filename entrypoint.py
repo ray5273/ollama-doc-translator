@@ -38,7 +38,7 @@ SKIP_EXISTING = os.getenv('INPUT_SKIP_EXISTING', 'true').lower() == 'true'
 TEMPERATURE = float(os.getenv('INPUT_TEMPERATURE', '0.3'))
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', '3'))
 SSL_VERIFY = os.getenv('INPUT_SSL_VERIFY', 'true').lower() == 'true'
-CONTEXT_LENGTH = int(os.getenv('INPUT_CONTEXT_LENGTH') or '32768')
+CONTEXT_LENGTH = int(os.getenv('INPUT_CONTEXT_LENGTH') or '8192')
 DEBUG_MODE = os.getenv('INPUT_DEBUG_MODE', 'true').lower() == 'true'
 
 def log(message):
