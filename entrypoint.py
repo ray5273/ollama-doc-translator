@@ -346,16 +346,22 @@ IMPORTANT: Content between [TRANSLATION_START] and [TRANSLATION_END] markers is 
 
 1. Translate ALL Korean text to English without exception
 2. Preserve exact formatting (markdown, HTML, code blocks)
+   - NEVER translate HTML comments (<!-- -->). Keep them exactly as they are in Korean
+   - Preserve ALL numbers in numbered lists exactly as they appear (e.g., "- 288. 텍스트" → "- 288. text")
+   - Do NOT add **bold**, *italic*, or any formatting that wasn't in the original text
+   - Please keep code blocks closed properly with ``` and do not alter code content
 3. Keep technical terms, URLs, and code unchanged
 4. Maintain document structure and numbering
+   - Don't add any extra explanations or comments (e.g. "Here is the translation:", "Note:", etc.)
 5. Translate Korean text even when it appears in:
    - Bold/italic formatting (**text**, *text*)
    - Headings (# ## ### text)
    - List items and numbered sections
    - Table contents
 
-Text to translate:
+[TRANSLATION_START]
 {text}
+[TRANSLATION_END]
 
 English translation:"""
     
