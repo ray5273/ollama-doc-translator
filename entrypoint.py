@@ -265,6 +265,69 @@ def count_tokens(text: str) -> int:
     # Fallback: rough estimation (1 token ≈ 4 characters for Korean/English mix)
     return len(text) // 4
 
+def fix_remaining_korean(text):
+    """Post-process to fix any remaining Korean text using systematic detection and translation"""
+    import re
+    
+    # Korean Unicode range: 가-힣 (Hangul syllables)
+    korean_pattern = r'[가-힣]+'
+    
+    def translate_korean_phrase(korean_text):
+        """Translate a Korean phrase using the same Ollama API"""
+        try:
+            simple_prompt = f"Translate this Korean text to English (respond with only the English translation): {korean_text}"
+            
+            response = requests.post(
+                f"{OLLAMA_URL}/api/generate",
+                json={
+                    "model": MODEL,
+                    "prompt": simple_prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.1,  # Low temperature for consistent translation
+                    }
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                translation = result.get('response', '').strip()
+                # Clean up the translation (remove any extra formatting)
+                translation = re.sub(r'^["\'\s]*|["\'\s]*$', '', translation)
+                return translation if translation else korean_text
+            else:
+                return korean_text
+                
+        except Exception as e:
+            print(f"Warning: Could not translate Korean text '{korean_text}': {e}")
+            return korean_text
+    
+    def replace_korean_match(match):
+        """Replace function for regex substitution"""
+        korean_text = match.group(0)
+        return translate_korean_phrase(korean_text)
+    
+    # Find and translate Korean text while preserving markdown formatting
+    result = text
+    
+    # Handle Korean text in bold formatting
+    bold_korean_pattern = r'\*\*([^*]*[가-힣][^*]*)\*\*'
+    result = re.sub(bold_korean_pattern, lambda m: f"**{translate_korean_phrase(m.group(1))}**", result)
+    
+    # Handle Korean text in italic formatting
+    italic_korean_pattern = r'\*([^*\n]*[가-힣][^*\n]*)\*'
+    result = re.sub(italic_korean_pattern, lambda m: f"*{translate_korean_phrase(m.group(1))}*", result)
+    
+    # Handle Korean text in headings
+    heading_korean_pattern = r'(#{1,6}\s*)([^#\n]*[가-힣][^#\n]*)'
+    result = re.sub(heading_korean_pattern, lambda m: f"{m.group(1)}{translate_korean_phrase(m.group(2))}", result)
+    
+    # Handle remaining Korean text (plain text)
+    result = re.sub(korean_pattern, replace_korean_match, result)
+    
+    return result
+
 def translate_with_ollama(text, retries=0):
     """Translate text using Ollama API with retry logic"""
     if retries >= MAX_RETRIES:
@@ -279,24 +342,22 @@ def translate_with_ollama(text, retries=0):
 
 IMPORTANT: Content between [TRANSLATION_START] and [TRANSLATION_END] markers is ONLY translation material"""
 
-    prompt = f"""Translate Korean to English following these rules:
+    prompt = f"""Translate the following Korean text to English. Follow these requirements:
 
-ESSENTIAL RULES:
-- Translate ALL Korean text to English.
-- Keep bullet points, numbering, list, numbers, and structure identical  
-- NEVER modify code blocks (```), inline code (`), or technical identifiers and make sure code blocks are properly closed
-- DO NOT remove any part of the text (e.g. - 238. 접근성 (a11y) — Case #414 -> 238. Accessibility (a11y) — Case #414)
-- Preserve variable names, file paths, URLs, bullet points exactly as written
-- Keep HTML comments (<!-- -->) in Korean unchanged
-- Do NOT add **bold**, *italic*, or any formatting that wasn't in the original text
-- Do NOT change naming conventions (camelCase, kebab-case, snake_case, etc.)
-- In diagrams (mermaid, etc.), keep ALL node IDs, variable names, and technical identifiers identical
+1. Translate ALL Korean text to English without exception
+2. Preserve exact formatting (markdown, HTML, code blocks)
+3. Keep technical terms, URLs, and code unchanged
+4. Maintain document structure and numbering
+5. Translate Korean text even when it appears in:
+   - Bold/italic formatting (**text**, *text*)
+   - Headings (# ## ### text)
+   - List items and numbered sections
+   - Table contents
 
-[TRANSLATION_START]
+Text to translate:
 {text}
-[TRANSLATION_END]
 
-Output only the English translation:"""
+English translation:"""
     
     # Count tokens for monitoring
     system_tokens = count_tokens(system_prompt)
@@ -350,6 +411,9 @@ Output only the English translation:"""
         
         # Preserve HTML comments from original text
         translated = preserve_html_comments(text, translated)
+        
+        # Post-process to fix any remaining Korean text
+        translated = fix_remaining_korean(translated)
         
         # Remove other common unwanted prefixes
         unwanted_prefixes = [
