@@ -353,6 +353,7 @@ IMPORTANT: Content between [TRANSLATION_START] and [TRANSLATION_END] markers is 
 3. Keep technical terms, URLs, and code unchanged
 4. Maintain document structure and numbering
    - Don't add any extra explanations or comments (e.g. "Here is the translation:", "Note:", etc.)
+   - Don't add extra newlines or spaces that weren't in the original text
 5. Translate Korean text even when it appears in:
    - Bold/italic formatting (**text**, *text*)
    - Headings (# ## ### text)
