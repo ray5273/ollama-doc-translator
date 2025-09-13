@@ -1,8 +1,6 @@
 # Problem Solving Guide
 
-## Common Issues and Solutions When Using Ollama Document Translator
-
-This guide addresses typical problems encountered while using the Ollama Document Translator and provides corresponding solutions.
+Provides guidance on common issues and solutions encountered while translating Ollama documents using the translator.
 
 ## Common Issues
 
@@ -10,24 +8,21 @@ This guide addresses typical problems encountered while using the Ollama Documen
 
 #### Symptoms
 ```
-❌ Error: Ollama server is not running.
+❌ Error: Ollama Server Executed It is Does not.
 ❌ Connection refused: http://localhost:11434
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-```markdown
 1. **Check Ollama Server Status**:
    ```bash
-   # Check Processes
+   # Check process
    ps aux | grep ollama
    
-   # Check Service Status (Linux)
+   # Check service status (Linux)
    systemctl status ollama
    ```
-```
 
-```markdown
 2. **Start Ollama Server**:
    ```bash
    # Run in background
@@ -36,18 +31,14 @@ This guide addresses typical problems encountered while using the Ollama Documen
    # Or run in foreground
    ollama serve
    ```
-```
 
-```markdown
-3. **Port Check**:
+3. **Port Verification**:
    ```bash
    # Check if port 11434 is in use
    netstat -tulpn | grep 11434
    lsof -i :11434
    ```
-```
 
-```markdown
 4. **Firewall Configuration**:
    ```bash
    # Ubuntu/Debian
@@ -57,45 +48,42 @@ This guide addresses typical problems encountered while using the Ollama Documen
    sudo firewall-cmd --add-port=11434/tcp --permanent
    sudo firewall-cmd --reload
    ```
-```
 
 ### 2. Model Download Failure
 
 #### Symptoms
 ```
-❌ Model 'exaone3.5:7.8b' not found.
+❌ Model 'exaone3.5:7.8b'It seems like the provided text "을" is incomplete or lacks context for a meaningful translation. Could you please provide more text for translation? Find Water None.
 ❌ Failed to pull model: network timeout
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
 1. **Check Internet Connection**:
    ```bash
    curl -I https://ollama.com
    ```
 
-2. **Manually Download the Model**:
+2. **Manually download the model**:
    ```bash
-   # Force Redownload the Model
+   # Model forced redownload
    ollama rm exaone3.5:7.8b
    ollama pull exaone3.5:7.8b
    ```
 
-```markdown
 3. **Proxy Settings** (Company Network):
    ```bash
    export HTTP_PROXY=http://proxy.company.com:8080
    export HTTPS_PROXY=http://proxy.company.com:8080
    ollama pull exaone3.5:7.8b
    ```
-```
 
-4. **Check Disk Space**:
+4. **Check disk space**:
    ```bash
    df -h ~/.ollama/models
    ```
 
-### 3. Failure in GitHub Actions Workflow
+### 3. GitHub Actions Workflow Failure
 
 #### Symptoms
 ```
@@ -103,29 +91,27 @@ This guide addresses typical problems encountered while using the Ollama Documen
 ❌ Permission denied
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-```markdown
-1. **Self-hosted Runner Verification**:
+1. **Self-hosted Runner Check**:
    ```bash
-   # Check Runner Status
+   # Check Runner status
    ./run.sh --check
    
    # Restart Runner
    ./run.sh
    ```
-```
 
 2. **Docker Permission Issues** (Linux):
    ```bash
-   # Add user to the docker group
+   # Add user to docker group
    sudo usermod -aG docker $USER
    
-   # Requires logging out and logging back in
+   # Re-login required
    newgrp docker
    ```
 
-3. **Token Authorization Verification**:
+3. **Token Permissions Verification**:
    - Repository Settings → Actions → General
    - Select "Read and write permissions" under "Workflow permissions"
 
@@ -133,37 +119,39 @@ This guide addresses typical problems encountered while using the Ollama Documen
 
 #### Symptoms
 - Inaccurate or inconsistent translations
-- Broken Markdown formatting
-- Incorrect translation of specialized terminology
+- Markdown formatting broken
+- Technical terms mistranslated
 
-#### Solution Method
+#### Solutions
 
-```markdown
 1. **Temperature Adjustment**:
    ```yaml
    temperature: 0.1  # For more consistent translations
    ```
 
-```yaml
-model: 'exaone3.5:32b'  # Use a Larger Model for Improved Accuracy
-```
+2. **Use Larger Model**:
+   ```yaml
+   model: 'exaone3.5:32b'  # For more accurate translations
+   ```
 
-```python
-# Adjust chunk size in entrypoint.py
-chunks = content.split('\n\n')  # By paragraph
-# Alternatively
-chunks = content.split('\n')   # By line
-```
+3. **Adjust Chunk Size**:
+   ```python
+   # Modify in entrypoint.py
+   chunks = content.split('\n\n')  # By paragraph
+   # Or
+   chunks = content.split('\n')    # By line
+   ```
 
-```python
-prompt = f"""Translate the following Korean technical document into English. 
-Maintain Markdown format precisely and keep technical terms in the original language.
-
-Korean Text:
-{text}
-
-English Translation:"""
-```
+4. **Improve Prompt**:
+   ```python
+   prompt = f"""Translate the following Korean technical document into English. 
+   Ensure Markdown formatting is preserved exactly, keeping technical terms in the original language.
+   
+   Korean Text:
+   {text}
+   
+   English Translation:"""
+   ```
 
 ### 5. Memory Insufficient Error
 
@@ -173,19 +161,20 @@ English Translation:"""
 ❌ Model failed to load
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-1. **System Memory Check**:
+1. **Check System Memory**:
    ```bash
    free -h
    htop
    ```
 
-```yaml
-model: 'mistral:7b'  # Uses less memory
-```
+2. **Use a smaller model.**:
+   ```yaml
+   model: 'mistral:7b'  # Less memory usage
+   ```
 
-**3. Add Swap Memory** (Linux):
+3. **Add swap memory** (Linux):
    ```bash
    # Create a 4GB swap file
    sudo fallocate -l 4G /swapfile
@@ -194,17 +183,18 @@ model: 'mistral:7b'  # Uses less memory
    sudo swapon /swapfile
    ```
 
-```yaml
-# docker-compose.yml
-services:
-  ollama:
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-```
+4. **Docker Memory Limit**:
+   ```yaml
+   # docker-compose.yml
+   services:
+     ollama:
+       deploy:
+         resources:
+           limits:
+             memory: 8G
+   ```
 
-### 6. Failure to Create a Pull Request
+### 6. Failed to Create Pull Request
 
 #### Symptoms
 ```
@@ -212,10 +202,9 @@ services:
 ❌ GitHub CLI not found
 ```
 
-#### Solution Method
+#### Troubleshooting Steps
 
-```markdown
-1. **Installation of GitHub CLI**:
+1. **Install GitHub CLI**:
    ```bash
    # Ubuntu/Debian
    sudo apt install gh
@@ -226,61 +215,60 @@ services:
    # Windows
    winget install GitHub.cli
    ```
-```
 
-2. **Authentication Setup**:
+2. **Set Up Authentication**:
    ```bash
    gh auth login
    ```
 
-3. **Token Authorization Check**:
-   - Verify repo permissions under Personal access tokens
+3. **Verify Token Permissions**:
+   - Check repo permissions under Personal access tokens
 
-```yaml
-create-pr: false
-```
+4. **Disable Manual PR Creation**:
+   ```yaml
+   create-pr: false
+   ```
 
 ### 7. File Encoding Issues
 
 #### Symptoms
 ```
 ❌ UnicodeDecodeError
-❌ Hangul characters displayed incorrectly
+❌ Korean characters Broken Displayed
 ```
 
-#### Solution Method
+#### Solution Steps
 
-```bash
-file -i docs/*.md
-```
+1. **Check File Encoding**:
+   ```bash
+   file -i docs/*.md
+   ```
 
 2. **Convert to UTF-8**:
    ```bash
-   # Convert file to UTF-8 encoding
+   # Convert file to UTF-8
    iconv -f EUC-KR -t UTF-8 input.md > output.md
    ```
 
-3. **Remove BOM** (if necessary):
+3. **Remove BOM (if necessary)**:
    ```bash
    sed -i '1s/^\xEF\xBB\xBF//' *.md
    ```
 
 ## Performance Optimization Tips
 
-### 1. Enhancing Translation Speed
+### 1. Translation Speed Improvement
 
 ```yaml
-# Enable Parallel Processing
+# Enable parallel processing
 max-parallel: 3
-```
 
-# Skip Existing Files
-```markdown
+# Skip existing file
 skip-existing: true
-```
 
-# Using a Faster Model
+# Use a faster model.
 model: 'mistral:7b'
+```
 
 ### 2. Resource Monitoring
 
@@ -304,29 +292,25 @@ verbose: false
 ### 1. Log Collection
 
 ```bash
-# Checking Ollama Logs
+# Check Ollama logs
 journalctl -u ollama -f
-```
 
 # Docker Logs
-```bash
 docker logs ollama-container
-```
 
 # Download GitHub Actions Logs
-```
 gh run download <run-id>
 ```
 
 ### 2. Direct API Testing
 
 ```bash
-# Direct Call to Ollama API
+# Direct call to Ollama API
 curl -X POST http://localhost:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{
     "model": "exaone3.5:7.8b",
-    "prompt": "Translate '안녕하세요' to English",
+    "prompt": "Hello Please provide the Korean text you would like translated into English. Translate this Korean text to English.",
     "stream": false
   }'
 ```
@@ -334,31 +318,24 @@ curl -X POST http://localhost:11434/api/generate \
 ### 3. Network Diagnostics
 
 ```bash
-# Network Connection Test
+# Network connection test
 telnet localhost 11434
-```
 
-# DNS Resolution Check
-```
+# Check DNS Resolution
 nslookup ollama.com
 ```
 
-## Request Support
+## Submitting a Support Request
 
-```
-If the problem persists:
-```
+If the issue is not resolved:
 
-```markdown
-1. **Issue Template Creation**:
+1. **Create an Issue Template**:
    - Operating System and Version
    - Ollama Version
    - Used Model
-   - Error Messages
+   - Error Message
    - Reproduction Steps
-```
 
-```markdown
 2. **Attach Logs**:
    ```bash
    # Collect Relevant Logs
@@ -368,20 +345,170 @@ If the problem persists:
 3. **GitHub Issues**:
    - [https://github.com/your-username/ollama-doc-translator/issues](https://github.com/your-username/ollama-doc-translator/issues)
 
-4. **Community Forum**:
+4. **Community Forums**:
    - [Ollama Discord](https://discord.gg/ollama)
    - [GitHub Discussions](https://github.com/your-username/ollama-doc-translator/discussions)
+
+## Smart Chunking & Debug Issues
+
+### 8. Large Document Processing Issues
+
+#### Symptoms
+```
+❌ Context length exceeded
+❌ Chunk Too much Greatly Created
+❌ Translation In the middle Breakage
+```
+
+#### Solutions
+
+1. **Adjust Context Length**:
+   ```yaml
+   context-length: 4096    # Set lower than default 32768
+   ```
+
+2. **Debug Chunking Analysis Mode**:
+   ```yaml
+   debug-mode: true
+   ```
+   
+   Generated files:
+   - `debug_chunks/`: Analysis per chunk
+   - `debug_originals/`: Original chunks
+   - `debug_translations/`: Translated chunks
+
+3. **Check Console Output**:
+   ```bash
+   📦 Created 15 token-aware chunks:
+      Chunk 1: 1,156 tokens (2,845 chars)  # Verify token count
+   ```
+
+### 9. Code Block Corruption Issues
+
+#### Symptoms
+```markdown
+# Original text not provided. Please provide the Korean text you would like translated.
+```python
+def hello():
+    print("world")
+```
+
+# Please provide the Korean text you would like translated.
+```python
+def hello():
+```
+print("world")
+```
+
+#### Solutions
+
+1. **Check Debug Comparison Files**:
+   ```bash
+   debug_comparisons/filename_comparison_001.md
+   ```
+
+2. **Section-Based Chunking Verification**:
+   - Ensure code blocks are not split in the middle of chunks
+   - Verify chunks are correctly separated based on H1-H3 headings
+
+3. **Enhance Translation Prompts**:
+   The current system already includes logic for preserving code blocks:
+   ```
+   - IMPORTANT: Do NOT add **bold**, *italic*, or any formatting not present in the original text
+   - Only translate text content, never modify or add markdown formatting
+   ```
+
+### 10. Translation Quality Mismatch Issues
+
+#### Symptoms
+```
+❌ Same Terminology Differently Translated
+❌ Style Chunk by chunk Change
+❌ Number From the list Numbered Disappearance
+```
+
+#### Solutions
+
+1. **Temperature Adjustment**:
+   ```yaml
+   temperature: 0.1        # More consistent translation (default: 0.3)
+   ```
+
+2. **Increase Retry Count**:
+   ```yaml
+   max-retries: 5         # Default: 3
+   ```
+
+3. **Translation Comparison Analysis**:
+   ```bash
+   # Compare original and translated text
+   debug_comparisons/filename_comparison_001.md
+   ```
+
+4. **Preserve Numbered List Verification**:
+   The system is designed to preserve the following pattern:
+   ```markdown
+   # Original
+   - 288. Cache Invalidation Scenario
+   
+   # Translated Result
+   - 288. Cache Invalidation Scenario
+   ```
+
+### 11. Debug File Usage
+
+#### Understanding Debug File Structure
+
+1. **Chunk Analysis** (`debug_chunks/`):
+   ```markdown
+   <!-- DEBUG CHUNK 1/15 -->
+   <!-- Tokens: 1,156 -->
+   <!-- Characters: 2,845 -->
+   <!-- Source: docs/api-guide.md -->
+   ```
+
+2. **Translation Performance Analysis**:
+   ```bash
+   📊 Translation Performance Summary:
+      ⏱️ Total time: 2m 34s
+      📄 Files processed: 12
+      🔄 Total chunks: 67
+      📈 Average chunk size: 1,089 tokens
+   ```
+
+3. **Identifying Problem Patterns**:
+   - Repeated errors in specific chunks
+   - Quality degradation in specific token ranges
+   - Formatting issues in specific markdown patterns
+
+#### Optimization Tips
+
+1. **Optimal Chunk Size**:
+   - 1,000-1,500 tokens: Balanced quality and speed
+   - 500-800 tokens: High quality, slower speed
+   - 2,000+ tokens: Fast speed, potential quality drop
+
+2. **Utilizing Section-Based Segmentation**:
+   - H1-H2: Always segment boundaries
+   - H3: Segment if over 200 tokens
+   - Code blocks: Never segment
 
 ## Frequently Asked Questions (FAQ)
 
 ### Q: Why is translation so slow? How can I speed it up?
-A: Use a GPU, opt for a smaller model, or run on a Self-hosted runner.
+A: Use a GPU, opt for a smaller model, or run it on a Self-hosted runner.
 
-### Q: How do you keep specific terms untranslated?
-A: Add instructions in the prompt like "Maintain technical terms in their original language."
+### Q: How do I keep specific terms untranslated?
+A: Add instructions in the prompt, such as "Keep technical terms in the original language."
 
-### Q: Can translations be done simultaneously in multiple languages?
-A: Currently, only Korean-English translation is supported, but multiple languages can be processed sequentially using a matrix strategy.
+### Q: Is multi-language translation supported simultaneously?
+A: Currently, only Korean-English translation is supported, but you can sequentially process multiple languages using a matrix strategy.
 
-### Q: Does it work with private repositories as well?
-A: Yes, it is usable with private repositories by using a Personal Access Token.
+### Q: Does it work with private repositories?
+A: Yes, it is compatible with private repositories when using a Personal Access Token.
+
+---
+
+> **⚠️ 이 문서는 AI로 번역된 문서입니다.**
+>
+> **⚠️ This document has been translated by AI.**

@@ -1,30 +1,20 @@
 # Setup Guide
 
-## Detailed Settings and Customization Methods for the Ollama Document Translator
+Provides detailed setup options and customization methods for the Ollama Document Translator.
 
-**Note:** This translation maintains the markdown structure without additional explanation as requested.
-
-## GitHub Action Configuration
+## GitHub Action Setup
 
 ### Basic Settings
 
-## Basic Workflow Setup:
-
-*  [Your workflow setup details would go here, maintaining markdown structure.]
+Simplest workflow setup form:
 
 ```yaml
 name: Document Translation
 
-English Translation:
-```
-
-```yaml
 on:
   push:
     paths: ['docs/**/*.md']
-```
 
-```markdown
 jobs:
   translate:
     runs-on: self-hosted
@@ -37,30 +27,30 @@ jobs:
 
 ### Advanced Settings
 
-Example utilizing all settings options:
+Example utilizing all configuration options:
 
 ```yaml
 - uses: your-username/ollama-doc-translator@v1
   with:
-    # Server Configuration
+    # Server settings
     ollama-url: 'http://localhost:11434'
     model: 'exaone3.5:7.8b'
     
-    # Directory Configuration
+    # Directory settings
     source-dir: 'docs'
     target-dir: 'docs-en'
     file-pattern: '**/*.md'
     
-    # Translation Settings
+    # Translation setting
     temperature: 0.3
     max-retries: 3
     skip-existing: true
     
-    # PR Settings
+    # PR Setup
     create-pr: true
     pr-title: 'Document Translation Update'
     pr-branch: 'translate-docs'
-    commit-message: 'Add English Translation of Korean Documents'
+    commit-message: 'docs: Please provide the Korean text you would like translated. Document It seems there might be a misunderstanding as no Korean text was provided for translation in your request. Could you please provide the Korean text you would like translated into English? Translation Additional'
     
     # Authentication
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -73,25 +63,25 @@ Example utilizing all settings options:
 Various Ollama models are available:
 
 | Model Name | Size | Memory Requirement | Translation Quality | Speed |
-|-----------|------|--------------------|---------------------|-------|
-| `exaone3.5:7.8b` | 7.8B | 8GB | Excellent | Fast |
+|------------|------|--------------------|---------------------|-------|
+| `exaone3.5:7.8b` | 7.8B | 8GB | Very Good | Fast |
 | `exaone3.5:32b` | 32B | 32GB | Best | Slow |
 | `llama3.1:8b` | 8B | 8GB | Good | Fast |
 | `mistral:7b` | 7B | 7GB | Good | Very Fast |
 
 ### Model Performance Tuning
 
-#### Temperature Settings
+#### Temperature Setting
 ```yaml
-temperature: 0.1  # More Consistent Translation (Conservative)
-temperature: 0.3  # Balanced Translation (Recommended)
-temperature: 0.7  # More Creative Translation
+temperature: 0.1  # More consistent translation (conservative approach)
+temperature: 0.3  # Balanced translation (recommended)
+temperature: 0.7  # More creative translation
 ```
 
 #### Context Length
 ```yaml
 # Settings for long documents
-context-length: 4096  # Default: 2048
+context-length: 4096  # Default value: 2048
 ```
 
 ## Directory Structure Setup
@@ -99,10 +89,10 @@ context-length: 4096  # Default: 2048
 ### Basic Structure
 ```
 project/
-├── docs/           # Original Korean
+├── docs/           # Please provide the Korean text you would like translated.
 │   ├── README.md
 │   └── guide.md
-└── docs-en/        # English Translation
+└── docs-en/        # Please provide the Korean text you would like translated into English.
     ├── README.md
     └── guide.md
 ```
@@ -119,9 +109,10 @@ file-pattern: '**/*.{md,mdx}'
 # Maintain subdirectory structure
 source-dir: 'docs'
 target-dir: 'docs-en'
-file-pattern: '**/*.md'  # Includes all subdirectories
+file-pattern: '**/*.md'  # Include all subdirectories
 ```
 
+Example:
 ```
 docs/
 ├── getting-started/
@@ -130,15 +121,9 @@ docs/
 ├── advanced/
 │   └── configuration.md
 └── README.md
-```
 
-→ **Translation Needed:** Please provide the Korean text you would like translated into English while preserving Markdown formatting. 
+→ Translation After
 
-영어 번역:
-→ **Original Korean Text Placeholder**  
-→ **English Translation Placeholder**
-
-```markdown
 docs-en/
 ├── getting-started/
 │   ├── installation.md
@@ -160,29 +145,27 @@ on:
     branches: [ main, develop ]
 ```
 
-### Schedule Execution
+### Scheduled Execution
 ```yaml
 on:
   schedule:
-    - cron: '0 2 * * 0'  # Every Monday at 2 AM
+    - cron: '0 2 * * 1'  # Every Monday at 2 AM
   workflow_dispatch:     # Allow manual execution
 ```
-
-(참고: 원래의 `* * * * 1` (월요일)을 `* * * * 0`으로 수정하여 영어 번역에서의 명확성을 유지했습니다. 만약 월요일을 정확히 유지해야 한다면, `0 2 * * 1`을 그대로 번역할 수 있습니다.)
 
 ### Conditional Execution
 ```yaml
 jobs:
   translate:
     if: contains(github.event.head_commit.message, '[translate]')
-    # Execute only if '[translate]' is included in the commit message
+    # Only execute if the commit message includes "[translate]".
 ```
 
-## Setting Up Pull Requests
+## Pull Request Setup
 
-### Customizing PR Templates
+### PR Template Customization
 
-You can customize the basic PR body text:
+You can customize the basic PR body:
 
 ```yaml
 pr-title: '📚 Document Translation: ${{ github.event.head_commit.message }}'
@@ -191,21 +174,19 @@ pr-branch: 'auto-translate-${{ github.run_number }}'
 
 ### Automatic Reviewer Assignment
 
-```markdown
-Create a `.github/CODEOWNERS` file to automatically assign reviewers to translation PRs:
-```
+Create a `.github/CODEOWNERS` file to automatically assign reviewers for translation PRs:
 
 ```
-docs-en/ @TranslationTeam
-*.md @DocsTeam
+docs-en/ @translation-team
+*.md @docs-team
 ```
 
 ### Automatic Label Addition
 
-Adding Labels Using GitHub CLI:
+Use GitHub CLI to add labels:
 
 ```yaml
-- name: Add Labels to PR
+- name: Add labels to PR
   run: |
     gh pr edit ${{ steps.translate.outputs.pr-number }} \
       --add-label "documentation" \
@@ -217,13 +198,13 @@ Adding Labels Using GitHub CLI:
 
 ### Parallel Processing
 ```yaml
-# Process multiple files simultaneously
+# Processing multiple files simultaneously
 max-parallel-files: 3
 ```
 
 ### Cache Configuration
 ```yaml
-- name: Cache Ollama Models
+- name: Cache Ollama models
   uses: actions/cache@v4
   with:
     path: ~/.ollama
@@ -232,10 +213,10 @@ max-parallel-files: 3
 
 ### Conditional Translation
 ```yaml
-# Execute translation only under specific conditions
-skip-existing: true        # Skip files already translated
-min-file-size: 100         # Skip files smaller than 100 bytes
-max-file-size: 50000       # Skip files larger than 50KB
+# Execute translation only under specific conditions.
+skip-existing: true        # Skip translated files already processed.
+min-file-size: 100        # Skip files under 100 bytes
+max-file-size: 50000      # Skip files over 50KB
 ```
 
 ## Security Settings
@@ -252,15 +233,15 @@ github-token: ${{ secrets.GITHUB_TOKEN }}
 
 ### Private Repository
 ```yaml
-# Usage within a private repository
+# Used in private storage
 - uses: actions/checkout@v4
   with:
     token: ${{ secrets.PAT_TOKEN }}  # Personal Access Token
 ```
 
-## Multilingual Support
+## Multi-Language Support
 
-### Translations into Multiple Languages
+### Translation into Multiple Languages
 
 ```yaml
 strategy:
@@ -270,9 +251,9 @@ strategy:
 steps:
 - uses: your-username/ollama-doc-translator@v1
   with:
-    target-dir: 'docs-${matrix.target-lang}'
+    target-dir: 'docs-${{ matrix.target-lang }}'
     model: 'exaone3.5:7.8b'
-    target-language: ${matrix.target-lang}
+    target-language: ${{ matrix.target-lang }}
 ```
 
 ## Notification Settings
@@ -284,7 +265,7 @@ steps:
   uses: 8398a7/action-slack@v3
   with:
     status: success
-    text: 'Translation complete: ${{ steps.translate.outputs.pr-url }}'
+    text: 'Document Translation It is completed.: ${{ steps.translate.outputs.pr-url }}'
 ```
 
 ### Email Notification
@@ -292,30 +273,188 @@ steps:
 - name: Send Email
   uses: dawidd6/action-send-mail@v3
   with:
-    subject: 'Translation Document Completed'
-    body: 'A new translation PR has been created.'
+    subject: 'Document Translation Completed'
+    body: 'New Translation PRThis It was created..'
 ```
 
-## Debug Settings for Problem Solving
+## Debug and Analysis Settings
 
-### Detailed Logging
+### Enable Debug Mode
+
+Through debug mode, you can inspect detailed information about the translation process:
+
 ```yaml
 - uses: your-username/ollama-doc-translator@v1
   with:
-    debug: true
-    verbose: true
+    debug-mode: true           # Enable debug file creation
+    github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Artifact Storage
+### Generated Debug Files
+
+When debug mode is activated, the following files are automatically generated:
+
+#### 1. Chunking Debug Files (`debug_chunks/`)
+```
+debug_chunks/
+├── document-name_chunk_001.md     # Analysis files per chunk
+├── document-name_chunk_002.md
+├── ...
+└── document-name_summary.md       # Chunking Summary Report
+```
+
+Example header of each chunk file:
+```markdown
+<!-- DEBUG CHUNK 1/15 -->
+<!-- Tokens: 245 -->
+<!-- Characters: 856 -->
+<!-- Source: docs/api-guide.md -->
+
+---
+
+Actual Chunk Content...
+```
+
+#### 2. Translation Comparison Files (`debug_originals/`, `debug_translations/`, `debug_comparisons/`)
+```
+debug_originals/
+├── document-name_original_001.md   # Original chunks
+├── document-name_original_002.md
+└── ...
+
+debug_translations/
+├── document-name_translated_001.md # Translated chunks
+├── document-name_translated_002.md
+└── ...
+
+debug_comparisons/
+├── document-name_comparison_001.md # Original-Translation Comparison File
+├── document-name_comparison_002.md
+└── ...
+```
+
+### Debug Information Interpretation
+
+#### Console Output Example
+```bash
+📄 Processing large file (5,234 tokens > 1,500 limit)...
+🔧 Starting chunking process:
+   📊 Input: 23 paragraphs
+   🎯 Target: 1,200 tokens per chunk
+📦 Created 5 token-aware chunks:
+   Chunk 1: 1,156 tokens (2,845 chars)
+   Chunk 2: 1,087 tokens (2,634 chars)
+   Chunk 3: 978 tokens (2,123 chars)
+   Chunk 4: 1,134 tokens (2,689 chars)
+   Chunk 5: 879 tokens (1,956 chars)
+🔄 [1/5] Translating chunk (1,156 tokens)... ✅ Done (2,934 chars)
+🐛 Saved debug files for chunk 1 (original/translated/comparison)
+```
+
+#### Token Calculation Information
 ```yaml
-- name: Upload Translation Logs
+# Setting context length for large document processing
+context-length: 32768          # Model context length
+```
+
+System Automatically Calculated Safe Token Count:
+- **Prompt Overhead**: ~200 tokens
+- **Output Reserved Space**: 40% of context length
+- **Safety Margin**: 100 tokens
+- **Available Usage**: Approximately 19,268 tokens (based on 32,768)
+
+### Advanced Debugging Settings
+
+#### Smart Chunking Analysis
+```yaml
+# Detailed Analysis of the Quaking Strategy
+- uses: your-username/ollama-doc-translator@v1
+  with:
+    debug-mode: true
+    context-length: 4096        # Fine-grained analysis in smaller chunks
+    temperature: 0.1            # Consistent translation outcome
+```
+
+#### Code Block Preservation Verification
+Verify that code blocks are correctly preserved through debug files:
+
+```markdown
+<!-- Original text not provided. Please provide the Korean text you would like translated. From the chunk -->
+```python
+def translate_text(text):
+    return translated_text
+```
+
+<!-- Translation In chunks as well Similarly Preservation -->
+```python
+def translate_text(text):
+    return translated_text
+```
+
+
+### Artifact and Log Storage
+
+```yaml
+- name: Upload debug files
+  if: always()  # Upload regardless of success or failure
+  uses: actions/upload-artifact@v4
+  with:
+    name: translation-debug-files
+    path: |
+      debug_chunks/
+      debug_originals/
+      debug_translations/
+      debug_comparisons/
+    retention-days: 7
+
+- name: Upload translation logs
   if: failure()
   uses: actions/upload-artifact@v4
   with:
     name: translation-logs
-    path: translation-*.log
+    path: |
+      translation-*.log
+      error-*.log
 ```
 
+### Performance Analysis
+
+Debug In mode Providing Performance Indicator:
+
+```bash
+📊 Translation Performance Summary:
+   ⏱️ Total time: 2m 34s
+   📄 Files processed: 12
+   🔄 Total chunks: 67
+   📈 Average chunk size: 1,089 tokens
+   ⚡ Translation speed: ~425 tokens/sec
+   🎯 Success rate: 100% (0 retries needed)
 ```
-You can configure the optimal translation workflow for your project by combining these settings.
+
+### Troubleshooting Guide
+
+#### Common Issues
+
+1. **Chunks are generated too large**
+   ```yaml
+   context-length: 4096  # Set smaller than default (32768)
+   ```
+
+2. **Translation quality is inconsistent**
+   ```yaml
+   temperature: 0.1      # More conservative translation
+   max-retries: 5        # Increase retry count
+   ```
+
+3. **Code blocks are broken**
+   - Compare original and translated in `debug_comparisons/` files
+   - Ensure code block preservation logic is functioning correctly
+
+These settings can be combined to configure the optimal translation workflow for your project.
 ```
+
+---
+
+> **⚠️ 이 문서는 AI로 번역된 문서입니다.**
+>
+> **⚠️ This document has been translated by AI.**
