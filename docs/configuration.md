@@ -390,7 +390,7 @@ def translate_text(text):
 def translate_text(text):
     return translated_text
 ```
-```
+
 
 ### 아티팩트 및 로그 저장
 
