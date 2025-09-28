@@ -29,6 +29,8 @@ FILE_PATTERN = os.getenv('INPUT_FILE_PATTERN', '**/*.md')
 SPECIFIC_FILES = os.getenv('INPUT_SPECIFIC_FILES', '')  # Comma-separated list of specific files
 COMMIT_MESSAGE = os.getenv('INPUT_COMMIT_MESSAGE', 'docs: Update English translations')
 CREATE_PR = os.getenv('INPUT_CREATE_PR', 'true').lower() == 'true'
+DIRECT_COMMIT = os.getenv('INPUT_DIRECT_COMMIT', 'false').lower() == 'true'
+DIRECT_COMMIT_BRANCH = os.getenv('INPUT_DIRECT_COMMIT_BRANCH', '').strip()
 PR_TITLE = os.getenv('INPUT_PR_TITLE', 'Update English documentation translations')
 PR_BRANCH = os.getenv('INPUT_PR_BRANCH', 'translation-update')
 GITHUB_TOKEN = os.getenv('INPUT_GITHUB_TOKEN', '')
@@ -1289,6 +1291,113 @@ def process_markdown_file(input_path, output_path):
         print(f"❌ Failed to process {input_path}: {str(e)}", flush=True)
         return False
 
+def stage_translated_changes(translated_files=None):
+    """Stage translated files and return the staged file list."""
+    try:
+        if translated_files:
+            log(f"Adding {len(translated_files)} translated files to git")
+            for file_path in translated_files:
+                log(f"Adding: {file_path}")
+                subprocess.run(['git', 'add', file_path], capture_output=True)
+        else:
+            log(f"Adding all changes in {TARGET_DIR}")
+            subprocess.run(['git', 'add', TARGET_DIR], capture_output=True)
+
+        result = subprocess.run(['git', 'diff', '--cached', '--name-only'],
+                                capture_output=True, text=True)
+        if result.returncode != 0:
+            log(f"Failed to list staged files: {result.stderr}")
+            return []
+
+        staged_files = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        return staged_files
+    except Exception as exc:
+        log(f"Failed to stage changes: {str(exc)}")
+        return []
+
+def get_remote_info():
+    """Return GitHub host, owner, and repo extracted from origin remote."""
+    remote_result = subprocess.run(['git', 'remote', 'get-url', 'origin'],
+                                  capture_output=True, text=True)
+    if remote_result.returncode != 0:
+        log("Failed to get remote URL")
+        return None, None, None
+
+    remote_url = remote_result.stdout.strip()
+    github_host = "github.com"
+    repo_part = None
+
+    if remote_url.startswith('git@'):
+        parts = remote_url.split('@', 1)
+        if len(parts) == 2 and ':' in parts[1]:
+            host_and_path = parts[1]
+            github_host, repo_part = host_and_path.split(':', 1)
+            repo_part = repo_part.replace('.git', '')
+    else:
+        if '//' in remote_url:
+            _, host_and_path = remote_url.split('//', 1)
+            path_parts = host_and_path.split('/', 1)
+            if len(path_parts) > 1:
+                github_host = path_parts[0]
+                repo_part = path_parts[1].replace('.git', '')
+
+    if not repo_part or '/' not in repo_part:
+        log("Could not extract owner/repo from URL")
+        return None, None, None
+
+    owner, repo = repo_part.split('/', 1)
+    return github_host, owner, repo
+
+def commit_direct(translated_files=None):
+    """Commit translated files directly without opening a pull request."""
+    if not GITHUB_TOKEN:
+        log("No GitHub token provided, skipping direct commit")
+        return False
+
+    try:
+        subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'],
+                      capture_output=True)
+        subprocess.run(['git', 'config', 'user.email',
+                        'github-actions[bot]@users.noreply.github.com'],
+                      capture_output=True)
+
+        staged_files = stage_translated_changes(translated_files)
+        if not staged_files:
+            log("No staged changes to commit")
+            return False
+
+        log(f"Staged files for direct commit: {staged_files}")
+
+        commit_result = subprocess.run(['git', 'commit', '-m', COMMIT_MESSAGE],
+                                       capture_output=True, text=True)
+        if commit_result.returncode != 0:
+            log(f"Failed to commit changes: {commit_result.stderr}")
+            return False
+
+        target_branch = DIRECT_COMMIT_BRANCH or BASE_BRANCH or 'main'
+
+        github_host, owner, repo = get_remote_info()
+        if not all([github_host, owner, repo]):
+            return False
+
+        push_url = f"https://x-access-token:{GITHUB_TOKEN}@{github_host}/{owner}/{repo}.git"
+        push_command = ['git', 'push', push_url, f'HEAD:{target_branch}']
+        push_result = subprocess.run(push_command, capture_output=True, text=True)
+
+        if push_result.returncode != 0:
+            log(f"Failed to push direct commit via HTTPS: {push_result.stderr}")
+            fallback_result = subprocess.run(['git', 'push', 'origin', f'HEAD:{target_branch}'],
+                                             capture_output=True, text=True)
+            if fallback_result.returncode != 0:
+                log(f"Fallback push failed: {fallback_result.stderr}")
+                return False
+
+        success(f"Changes pushed directly to {target_branch}")
+        return True
+    except Exception as exc:
+        log(f"Failed to push direct commit: {str(exc)}")
+        return False
+
 def create_pull_request(translated_files=None):
     """Create a pull request with the changes"""
     if not GITHUB_TOKEN:
@@ -1303,26 +1412,11 @@ def create_pull_request(translated_files=None):
                        'github-actions[bot]@users.noreply.github.com'], 
                       capture_output=True)
         
-        # Add only the translated files if specified, otherwise add all changes in target dir
-        if translated_files:
-            log(f"Adding {len(translated_files)} translated files to git")
-            for file_path in translated_files:
-                log(f"Adding: {file_path}")
-                subprocess.run(['git', 'add', file_path], capture_output=True)
-        else:
-            # Fallback to adding entire target directory
-            log(f"Adding all changes in {TARGET_DIR}")
-            subprocess.run(['git', 'add', TARGET_DIR], capture_output=True)
-        
-        # Check if there are staged changes
-        result = subprocess.run(['git', 'diff', '--cached', '--name-only'], 
-                              capture_output=True, text=True)
-        
-        if not result.stdout.strip():
+        staged_files = stage_translated_changes(translated_files)
+        if not staged_files:
             log("No staged changes to commit")
             return None, None
-        
-        staged_files = result.stdout.strip().split('\n')
+
         log(f"Staged files for commit: {staged_files}")
         
         # Create branch
@@ -1332,48 +1426,9 @@ def create_pull_request(translated_files=None):
         # Commit changes
         subprocess.run(['git', 'commit', '-m', COMMIT_MESSAGE], capture_output=True)
         
-        # Get remote URL and extract repo info
-        remote_result = subprocess.run(['git', 'remote', 'get-url', 'origin'], 
-                                     capture_output=True, text=True)
-        if remote_result.returncode != 0:
-            log("Failed to get remote URL")
+        github_host, owner, repo = get_remote_info()
+        if not all([github_host, owner, repo]):
             return None, None
-        
-        remote_url = remote_result.stdout.strip()
-        
-        # Extract owner/repo from URL and determine GitHub instance
-        github_host = "github.com"
-        
-        if remote_url.startswith('git@'):
-            # SSH format: git@github.com:owner/repo.git or git@enterprise.com:owner/repo.git
-            host_and_path = remote_url.split('@')[1]
-            github_host = host_and_path.split(':')[0]
-            repo_part = host_and_path.split(':')[1].replace('.git', '')
-        else:
-            # HTTPS format: https://github.com/owner/repo.git or https://enterprise.com/owner/repo.git
-            if '//' in remote_url:
-                url_parts = remote_url.split('//')
-                if len(url_parts) > 1:
-                    host_and_path = url_parts[1]
-                    path_parts = host_and_path.split('/', 1)
-                    if len(path_parts) > 1:
-                        github_host = path_parts[0]
-                        repo_part = path_parts[1].replace('.git', '')
-                    else:
-                        log("Invalid repository URL format")
-                        return None, None
-                else:
-                    log("Invalid repository URL format")
-                    return None, None
-            else:
-                log("Invalid repository URL format")
-                return None, None
-        
-        if '/' not in repo_part:
-            log("Could not extract owner/repo from URL")
-            return None, None
-            
-        owner, repo = repo_part.split('/', 1)
         
         # Push branch using token authentication
         push_url = f"https://x-access-token:{GITHUB_TOKEN}@{github_host}/{owner}/{repo}.git"
@@ -1615,14 +1670,22 @@ def main():
     else:
         set_output('translated-files-list', '')
     
-    # Create PR if requested and there are changes
-    if CREATE_PR and translated_count > 0:
-        pr_url, pr_number = create_pull_request(translated_files)
-        if pr_url:
-            set_output('pr-url', pr_url)
-            set_output('pr-number', pr_number)
-    elif translated_count > 0:
-        log(f"PR creation disabled. {translated_count} files translated and ready for artifact upload.")
+    # Handle post-translation git automation when changes exist
+    if translated_count > 0:
+        if DIRECT_COMMIT:
+            log("Direct commit option enabled; attempting to push changes without PR")
+            if commit_direct(translated_files):
+                set_output('pr-url', '')
+                set_output('pr-number', '')
+            else:
+                log("Direct commit failed. Please review workflow logs and push manually.")
+        elif CREATE_PR:
+            pr_url, pr_number = create_pull_request(translated_files)
+            if pr_url:
+                set_output('pr-url', pr_url)
+                set_output('pr-number', pr_number)
+        else:
+            log(f"PR creation disabled. {translated_count} files translated and ready for artifact upload.")
 
 if __name__ == "__main__":
     main()

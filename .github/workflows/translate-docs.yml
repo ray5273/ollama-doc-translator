@@ -26,6 +26,11 @@ on:
         required: false
         default: false
         type: boolean
+      direct_commit:
+        description: 'Commit translations directly to the branch (skip PR)'
+        required: false
+        default: false
+        type: boolean
       pr_title:
         description: 'Custom PR title'
         required: false
@@ -95,7 +100,9 @@ jobs:
         skip-existing: ${{ !inputs.force_translate }}
         ssl-verify: ${{ inputs.ssl_verify }}
         debug-mode: ${{ inputs.debug_mode }}
-        create-pr: true
+        create-pr: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.direct_commit != 'true' }}
+        direct-commit: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.direct_commit == 'true' }}
+        direct-commit-branch: ${{ github.ref_name }}
         pr-title: ${{ inputs.pr_title }}
         pr-branch: 'auto-translate-${{ github.run_number }}'
         base-branch: 'main'
@@ -136,7 +143,11 @@ jobs:
         if [ -n "${{ steps.translate.outputs.pr-url }}" ]; then
           echo "- **Pull Request**: [${{ steps.translate.outputs.pr-number }}](${{ steps.translate.outputs.pr-url }})" >> $GITHUB_STEP_SUMMARY
         elif [ "${{ steps.translate.outputs.translated-files }}" != "0" ]; then
-          echo "- **Artifact**: Translated files uploaded as artifact 'translated-docs-${{ github.run_number }}'" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.direct_commit || 'false' }}" = "true" ]; then
+            echo "- **Result**: Changes committed directly to '${{ github.ref_name }}'" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Artifact**: Translated files uploaded as artifact 'translated-docs-${{ github.run_number }}'" >> $GITHUB_STEP_SUMMARY
+          fi
         else
           echo "- **Result**: No changes detected" >> $GITHUB_STEP_SUMMARY
         fi

@@ -51,6 +51,16 @@ inputs:
     description: 'Create pull request with translations'
     required: false
     default: 'true'
+
+  direct-commit:
+    description: 'Commit translations directly without opening a pull request'
+    required: false
+    default: 'false'
+
+  direct-commit-branch:
+    description: 'Target branch for direct commits (defaults to base branch when empty)'
+    required: false
+    default: ''
   
   pr-title:
     description: 'Pull request title'

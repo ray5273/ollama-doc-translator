@@ -52,6 +52,8 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+When `direct-commit` is enabled the action commits on top of the checkout ref, so PR-related inputs are skipped.
+
 ### Advanced Configuration
 
 ```yaml
@@ -72,12 +74,14 @@ jobs:
     temperature: 0.2              # More consistent translations
     max-retries: 5               # More robust error handling
     skip-existing: true
-    
+
     # Debug & Analysis
     debug-mode: true             # Generate debug files for analysis
-    
+
     # PR Configuration
-    create-pr: true
+    create-pr: false             # Disable PRs when committing directly
+    direct-commit: true          # Push translations straight to the repository
+    direct-commit-branch: 'main' # Optional override (defaults to base-branch input)
     pr-title: 'Auto-translated documentation update'
     pr-branch: 'auto-translation'
     commit-message: 'docs: Auto-translate Korean to English'
@@ -97,6 +101,8 @@ jobs:
 | `max-retries` | Maximum API call retries | No | `3` |
 | `skip-existing` | Skip existing newer files | No | `true` |
 | `create-pr` | Create pull request | No | `true` |
+| `direct-commit` | Commit translations directly without creating a PR | No | `false` |
+| `direct-commit-branch` | Branch to receive direct commits (defaults to base branch) | No | `` |
 | `pr-title` | Pull request title | No | `Update English documentation translations` |
 | `pr-branch` | PR branch name | No | `translation-update` |
 | `commit-message` | Commit message | No | `docs: Update English translations` |
