@@ -15,7 +15,7 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 - **Debug & Analysis**: Comprehensive chunking analysis and debug file generation with side-by-side comparisons
 - **Code Block Protection**: Never splits code blocks across chunks, preserves all programming languages
 - **Customizable**: Configure source/target directories, models, translation parameters, and chunking strategies
-- **Auto PR Creation**: Automatically creates pull requests with translations
+- **Flexible Commit Strategy**: Option to create pull requests or commit directly to base branch
 - **Smart Skipping**: Skip files that are already translated and up-to-date
 - **Retry Logic**: Built-in retry mechanism with exponential backoff for robust API calls
 
@@ -48,7 +48,7 @@ jobs:
         source-dir: 'docs'
         target-dir: 'docs-en'
         model: 'exaone3.5:7.8b'
-        create-pr: true
+        # Commits directly to main branch by default
         github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
@@ -76,11 +76,16 @@ jobs:
     # Debug & Analysis
     debug-mode: true             # Generate debug files for analysis
     
-    # PR Configuration
-    create-pr: true
-    pr-title: 'Auto-translated documentation update'
-    pr-branch: 'auto-translation'
+    # Commit Strategy (choose one)
+    # Option 1: Commit directly to base branch (default)
+    create-pr: false
     commit-message: 'docs: Auto-translate Korean to English'
+
+    # Option 2: Create pull request
+    # create-pr: true
+    # pr-title: 'Auto-translated documentation update'
+    # pr-branch: 'auto-translation'
+
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
@@ -96,7 +101,7 @@ jobs:
 | `temperature` | Model temperature (0.0-1.0) | No | `0.3` |
 | `max-retries` | Maximum API call retries | No | `3` |
 | `skip-existing` | Skip existing newer files | No | `true` |
-| `create-pr` | Create pull request | No | `true` |
+| `create-pr` | Create pull request (if false, commits directly to base branch) | No | `false` |
 | `pr-title` | Pull request title | No | `Update English documentation translations` |
 | `pr-branch` | PR branch name | No | `translation-update` |
 | `commit-message` | Commit message | No | `docs: Update English translations` |
