@@ -95,7 +95,7 @@ jobs:
         skip-existing: ${{ !inputs.force_translate }}
         ssl-verify: ${{ inputs.ssl_verify }}
         debug-mode: ${{ inputs.debug_mode }}
-        create-pr: true
+        create-pr: false
         pr-title: ${{ inputs.pr_title }}
         pr-branch: 'auto-translate-${{ github.run_number }}'
         base-branch: 'main'

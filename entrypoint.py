@@ -28,7 +28,7 @@ TARGET_DIR = os.getenv('INPUT_TARGET_DIR', 'docs-en')
 FILE_PATTERN = os.getenv('INPUT_FILE_PATTERN', '**/*.md')
 SPECIFIC_FILES = os.getenv('INPUT_SPECIFIC_FILES', '')  # Comma-separated list of specific files
 COMMIT_MESSAGE = os.getenv('INPUT_COMMIT_MESSAGE', 'docs: Update English translations')
-CREATE_PR = os.getenv('INPUT_CREATE_PR', 'true').lower() == 'true'
+CREATE_PR = os.getenv('INPUT_CREATE_PR', 'false').lower() == 'true'
 PR_TITLE = os.getenv('INPUT_PR_TITLE', 'Update English documentation translations')
 PR_BRANCH = os.getenv('INPUT_PR_BRANCH', 'translation-update')
 GITHUB_TOKEN = os.getenv('INPUT_GITHUB_TOKEN', '')
@@ -1289,6 +1289,116 @@ def process_markdown_file(input_path, output_path):
         print(f"❌ Failed to process {input_path}: {str(e)}", flush=True)
         return False
 
+def commit_to_base_branch(translated_files=None):
+    """Commit changes directly to the base branch"""
+    try:
+        # Configure git
+        subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'],
+                      capture_output=True)
+        subprocess.run(['git', 'config', 'user.email',
+                       'github-actions[bot]@users.noreply.github.com'],
+                      capture_output=True)
+
+        # Add only the translated files if specified, otherwise add all changes in target dir
+        if translated_files:
+            log(f"Adding {len(translated_files)} translated files to git")
+            for file_path in translated_files:
+                log(f"Adding: {file_path}")
+                subprocess.run(['git', 'add', file_path], capture_output=True)
+        else:
+            # Fallback to adding entire target directory
+            log(f"Adding all changes in {TARGET_DIR}")
+            subprocess.run(['git', 'add', TARGET_DIR], capture_output=True)
+
+        # Check if there are staged changes
+        result = subprocess.run(['git', 'diff', '--cached', '--name-only'],
+                              capture_output=True, text=True)
+
+        if not result.stdout.strip():
+            log("No staged changes to commit")
+            return False
+
+        staged_files = result.stdout.strip().split('\n')
+        log(f"Staged files for commit: {staged_files}")
+
+        # Commit changes directly to the current branch (should be base branch)
+        commit_result = subprocess.run(['git', 'commit', '-m', COMMIT_MESSAGE],
+                                     capture_output=True, text=True)
+
+        if commit_result.returncode != 0:
+            log(f"Failed to commit changes: {commit_result.stderr}")
+            return False
+
+        log(f"Successfully committed changes to {BASE_BRANCH}")
+
+        # Push changes to remote if we have a token
+        if GITHUB_TOKEN:
+            # Get remote URL and extract repo info for token authentication
+            remote_result = subprocess.run(['git', 'remote', 'get-url', 'origin'],
+                                         capture_output=True, text=True)
+            if remote_result.returncode == 0:
+                remote_url = remote_result.stdout.strip()
+
+                # Extract GitHub host for token authentication
+                github_host = "github.com"
+                repo_part = ""
+
+                if remote_url.startswith('git@'):
+                    # SSH format: git@github.com:owner/repo.git
+                    host_and_path = remote_url.split('@')[1]
+                    github_host = host_and_path.split(':')[0]
+                    repo_part = host_and_path.split(':')[1].replace('.git', '')
+                else:
+                    # HTTPS format: https://github.com/owner/repo.git
+                    if '//' in remote_url:
+                        url_parts = remote_url.split('//')
+                        if len(url_parts) > 1:
+                            host_and_path = url_parts[1]
+                            path_parts = host_and_path.split('/', 1)
+                            if len(path_parts) > 1:
+                                github_host = path_parts[0]
+                                repo_part = path_parts[1].replace('.git', '')
+
+                if '/' in repo_part:
+                    owner, repo = repo_part.split('/', 1)
+                    # Push using token authentication
+                    push_url = f"https://x-access-token:{GITHUB_TOKEN}@{github_host}/{owner}/{repo}.git"
+                    push_result = subprocess.run(['git', 'push', push_url, BASE_BRANCH],
+                                               capture_output=True, text=True)
+
+                    if push_result.returncode != 0:
+                        log(f"Failed to push with token auth: {push_result.stderr}")
+                        # Try to use existing remote
+                        push_result = subprocess.run(['git', 'push', 'origin', BASE_BRANCH],
+                                                   capture_output=True, text=True)
+                        if push_result.returncode == 0:
+                            log(f"Successfully pushed changes to {BASE_BRANCH}")
+                        else:
+                            log(f"Failed to push changes: {push_result.stderr}")
+                            return False
+                    else:
+                        log(f"Successfully pushed changes to {BASE_BRANCH}")
+                else:
+                    # Fallback to regular push
+                    push_result = subprocess.run(['git', 'push', 'origin', BASE_BRANCH],
+                                               capture_output=True, text=True)
+                    if push_result.returncode == 0:
+                        log(f"Successfully pushed changes to {BASE_BRANCH}")
+                    else:
+                        log(f"Failed to push changes: {push_result.stderr}")
+                        return False
+            else:
+                log("Could not get remote URL, skipping push")
+        else:
+            log("No GitHub token provided, skipping push")
+
+        return True
+
+    except Exception as e:
+        log(f"Failed to commit to base branch: {str(e)}")
+        return False
+
+
 def create_pull_request(translated_files=None):
     """Create a pull request with the changes"""
     if not GITHUB_TOKEN:
@@ -1615,14 +1725,23 @@ def main():
     else:
         set_output('translated-files-list', '')
     
-    # Create PR if requested and there are changes
-    if CREATE_PR and translated_count > 0:
-        pr_url, pr_number = create_pull_request(translated_files)
-        if pr_url:
-            set_output('pr-url', pr_url)
-            set_output('pr-number', pr_number)
-    elif translated_count > 0:
-        log(f"PR creation disabled. {translated_count} files translated and ready for artifact upload.")
+    # Commit changes if there are translated files
+    if translated_count > 0:
+        if CREATE_PR:
+            # Create PR if requested
+            pr_url, pr_number = create_pull_request(translated_files)
+            if pr_url:
+                set_output('pr-url', pr_url)
+                set_output('pr-number', pr_number)
+        else:
+            # Commit directly to base branch
+            commit_success = commit_to_base_branch(translated_files)
+            if commit_success:
+                log(f"Successfully committed {translated_count} translated files to {BASE_BRANCH}")
+            else:
+                log(f"Failed to commit changes to {BASE_BRANCH}")
+    else:
+        log("No files translated, skipping commit/PR creation")
 
 if __name__ == "__main__":
     main()
