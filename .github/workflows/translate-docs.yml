@@ -41,6 +41,16 @@ on:
         required: false
         default: ''
         type: string
+      base_branch:
+        description: 'Base branch to commit to (leave empty to use current branch)'
+        required: false
+        default: ''
+        type: string
+      create_pr:
+        description: 'Create pull request instead of direct commit'
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: write
   pull-requests: write
@@ -95,10 +105,10 @@ jobs:
         skip-existing: ${{ !inputs.force_translate }}
         ssl-verify: ${{ inputs.ssl_verify }}
         debug-mode: ${{ inputs.debug_mode }}
-        create-pr: true
+        create-pr: ${{ inputs.create_pr }}
         pr-title: ${{ inputs.pr_title }}
         pr-branch: 'auto-translate-${{ github.run_number }}'
-        base-branch: 'main'
+        base-branch: ${{ inputs.base_branch || github.ref_name }}
         commit-message: 'docs: Auto-translate Korean documents to English'
         github-token: ${{ secrets.GITHUB_TOKEN }}
       id: translate

@@ -48,9 +48,9 @@ inputs:
     default: 'docs: Update English translations'
   
   create-pr:
-    description: 'Create pull request with translations'
+    description: 'Create pull request with translations. If false, commits directly to base branch.'
     required: false
-    default: 'true'
+    default: 'false'
   
   pr-title:
     description: 'Pull request title'
