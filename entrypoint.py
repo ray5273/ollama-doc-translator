@@ -1292,6 +1292,16 @@ def process_markdown_file(input_path, output_path):
 def commit_to_base_branch(translated_files=None):
     """Commit changes directly to the base branch"""
     try:
+        # Get current branch name
+        current_branch_result = subprocess.run(['git', 'branch', '--show-current'],
+                                             capture_output=True, text=True)
+        if current_branch_result.returncode == 0:
+            current_branch = current_branch_result.stdout.strip()
+            log(f"Current branch detected: {current_branch}")
+        else:
+            current_branch = BASE_BRANCH
+            log(f"Could not detect current branch, using configured base: {current_branch}")
+
         # Configure git
         subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'],
                       capture_output=True)
@@ -1329,7 +1339,7 @@ def commit_to_base_branch(translated_files=None):
             log(f"Failed to commit changes: {commit_result.stderr}")
             return False
 
-        log(f"Successfully committed changes to {BASE_BRANCH}")
+        log(f"Successfully committed changes to {current_branch}")
 
         # Push changes to remote if we have a token
         if GITHUB_TOKEN:
@@ -1363,27 +1373,27 @@ def commit_to_base_branch(translated_files=None):
                     owner, repo = repo_part.split('/', 1)
                     # Push using token authentication
                     push_url = f"https://x-access-token:{GITHUB_TOKEN}@{github_host}/{owner}/{repo}.git"
-                    push_result = subprocess.run(['git', 'push', push_url, BASE_BRANCH],
+                    push_result = subprocess.run(['git', 'push', push_url, current_branch],
                                                capture_output=True, text=True)
 
                     if push_result.returncode != 0:
                         log(f"Failed to push with token auth: {push_result.stderr}")
                         # Try to use existing remote
-                        push_result = subprocess.run(['git', 'push', 'origin', BASE_BRANCH],
+                        push_result = subprocess.run(['git', 'push', 'origin', current_branch],
                                                    capture_output=True, text=True)
                         if push_result.returncode == 0:
-                            log(f"Successfully pushed changes to {BASE_BRANCH}")
+                            log(f"Successfully pushed changes to {current_branch}")
                         else:
                             log(f"Failed to push changes: {push_result.stderr}")
                             return False
                     else:
-                        log(f"Successfully pushed changes to {BASE_BRANCH}")
+                        log(f"Successfully pushed changes to {current_branch}")
                 else:
                     # Fallback to regular push
-                    push_result = subprocess.run(['git', 'push', 'origin', BASE_BRANCH],
+                    push_result = subprocess.run(['git', 'push', 'origin', current_branch],
                                                capture_output=True, text=True)
                     if push_result.returncode == 0:
-                        log(f"Successfully pushed changes to {BASE_BRANCH}")
+                        log(f"Successfully pushed changes to {current_branch}")
                     else:
                         log(f"Failed to push changes: {push_result.stderr}")
                         return False
