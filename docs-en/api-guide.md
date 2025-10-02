@@ -2,26 +2,22 @@
 
 ## Overview
 
-This document serves as a guide on how to perform text translation using the Ollama API.
+This document provides a guide on how to perform text translation using the Ollama API.
 
-## Basic Settings
+## Basic Setup
 
-### 1. Installing Ollama
+### 1. Ollama Installation
 
-First, install Ollama on the system:
+First, install Ollama on your system:
 
 ```bash
 # Windows
 winget install Ollama.Ollama
-```
 
 # macOS
-```bash
 brew install ollama
-```
 
 # Linux
-```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
@@ -30,10 +26,10 @@ curl -fsSL https://ollama.com/install.sh | sh
 Download the exaone3.5:7.8b model for translation:
 
 ```bash
-git pull origin exaone3.5:7.8b
+ollama pull exaone3.5:7.8b
 ```
 
-## How to Use the API
+## API Usage
 
 ### Basic Request
 
@@ -42,7 +38,7 @@ curl -X POST http://localhost:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{
     "model": "exaone3.5:7.8b",
-    "prompt": "Translate the following Korean text into English: 안녕하세요",
+    "prompt": "Next Please provide the Korean text you would like translated. The text is Please provide the Korean text you would like translated into English. Please provide the Korean text you would like translated.: Hello",
     "stream": false
   }'
 ```
@@ -60,20 +56,18 @@ curl -X POST http://localhost:11434/api/generate \
 
 ## Tips for Improving Translation Quality
 
-Please provide the Korean text you would like translated while adhering to the guidelines regarding context, specialized terminology handling, and consistency. Here is a template based on your request:
-
-**Korean Text:**
-[Insert Korean Text Here]
-
-**English Translation:**
-[Insert Translated Text Here]
-
-If you provide the specific text, I can apply this structure directly to your content.
+1. **Provide Context**: Offer context along with the text to be translated
+2. **Handle Technical Terms**: Provide separate definitions for technical terms
+3. **Maintain Consistency**: Use the same translation consistently for identical terms
 
 ## Important Notes
 
-```
 - Operates only in local environments
-- Does not require internet connection
-- Requires sufficient memory depending on model size
-```
+- No internet connection required
+- Sufficient memory may be needed depending on model size
+
+---
+
+> **⚠️ 이 문서는 AI로 번역된 문서입니다.**
+>
+> **⚠️ This document has been translated by AI.**
