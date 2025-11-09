@@ -1,15 +1,15 @@
 # PBSSD Firmware Installation & Execution Guide
 This document provides guidance on the installation (PBSSD Firmware Installation) and execution (PBSSD Firmware Execution) procedures of PBSSD firmware.
 
-This document assumes the following goals and environment:
-- **Goal:** Control PBSSD firmware installation and execution
+This document assumes the following goals and environments:
+- **Goal:** Control the installation and execution of PBSSD firmware
 - **Environment:** Debian package for PBSSD firmware is prepared
 
 > **Example Usage Note:**
 > - Some commands may require `sudo` privileges depending on the environment.
 > - REST API Requests
->   - Assuming use of `admin:admin` credentials for the administrator account.
->   - Assuming the use of a self-signed certificate, commands are written with the `-k` option for `curl`.
+>   - It is assumed that the administrator account uses `admin:admin`.
+>   - Assuming the use of a self-signed certificate, commands are written with the `-k` option included for `curl`.
 
 ## PBSSD Firmware Installation
 PBSSD firmware installation procedure.
@@ -55,10 +55,10 @@ otel/opentelemetry-collector       2.6.0                afb19f2adefc   2 years a
 ```
 
 ## PBSSD Status Check Before Starting PBSSD Firmware
-Before starting the PBSSD firmware, the status response for each command has been prepared. Since the PBSSD firmware services are currently not running, the PBSSD service status is `inactive`.
+PBSSD firmware status responses for each command have been documented prior to initiating the PBSSD firmware.
 
-**1. Service Status Check**  
-The installed PBSSD firmware consists of multiple services, and you can check their status using the following commands. Currently, since the PBSSD firmware services are not running, the PBSSD service status is `inactive`.
+**1. Service Status Verification**  
+The installed PBSSD firmware comprises multiple services, and service status can be verified using the following commands. Since the PBSSD firmware services are currently not running, the PBSSD service status is `inactive`.
 ```bash
 $ systemctl status orc_init
 ```
@@ -78,8 +78,8 @@ $ systemctl status orc_run
      ...
 ```
 
-**2. Container Status Check**  
-The installed PBSSD firmware operates in container form, and you can check the container runtime status using the following command. Since the PBSSD firmware services are currently not running, the relevant containers are not active.
+**2. Container Status Verification**  
+The installed PBSSD firmware operates in container form, and container status can be checked using the following command. Since the PBSSD firmware services are currently not running, related containers are not active.
 ```bash
 $ docker ps
 ```
@@ -87,9 +87,9 @@ $ docker ps
 CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
 ```
 
-**3. Storage Status Check**  
-Storage status can be verified using the following command. Use `nvme list` to check NVMe devices registered with the operating system.  
-*Note:* After starting the PBSSD firmware, NVMe devices will be managed by the firmware, thus they may not appear through this command anymore.
+**3. Storage Status Verification**  
+Storage status can be verified using the following command. Use `nvme list` to identify NVMe devices registered with the operating system.  
+*Note:* After PBSSD firmware execution, NVMe devices are managed by the firmware, thus they may no longer be visible via this command.
 ```bash
 $ nvme list
 ```
@@ -125,12 +125,13 @@ This is **bold** text and *italic* text.
 ```
 
 ## Title 1
-This Section is It seems there might be a misunderstanding as no Korean text was provided for translation in your request. Could you please provide the Korean text you would like translated into English? Written Simple Markdown This is an example..
+This Section is It seems there might be a misunderstanding in your request as no Korean text was provided for translation. Could you please provide the Korean text you would like translated into English? Written Simple Markdown This is an example..
 
 ### List
 - First th Item
 - Two th Item
-  - Subordinate Item
+  - Below Item
+- Three th Item
 
 ### Code block example
 ```python
@@ -138,27 +139,55 @@ def hello_world():
     print("Hello, World!")
 ```
 
-### Example link
-[Naver](https://www.naver.com) And [Kakao](https://www.kakao.com)
+### Links and images
+[Site Visit](http://example.com)  
+![Image Explanation](http://example.com/image.jpg)
 
-### Emphasis Examples
-**Strongly emphasized** *A little emphasis*
-
-### Table example
+### Table
 | Name   | Age | Occupation       |
 | ------ | ---- | ---------- |
-| Kim Chul-su | 30   | Developer     |
+| Kim Cheol-su | 30   | Developer     |
 | Park Younghee | 25   | Designer   |
 
-<!-- This Part HTML As a footnote. As is Maintenance -->
-<!-- Please provide the Korean text you would like translated to English. Comment Example -->
+<!-- HTML The translation of "주석은" to English is "The annotation is" or more contextually appropriate might depend on the full sentence, but generally, it refers to "The comment" or "The annotation." Without additional context, this is the direct translation. As is Maintenance -->
+<!-- This Part Translate this Korean text to English Does not -->
 
-```javascript
-// Function Definition Example
-function greet() {
-    console.log("Hello!");
-}
+**Important text** *Emphasized text*
 ```
+
+English translation:
+```
+# Example of Korean Markdown
+
+## Title 1
+This section is a simple markdown example written in Korean.
+
+### List
+- First item
+- Second item
+  - Sub-item
+- Third item
+
+### Code Block Example
+```python
+def hello_world():
+    print("Hello, world!")
+```
+
+### Links and Images
+[Visit Site](http://example.com)  
+![Image Description](http://example.com/image.jpg)
+
+### Table
+| Name   | Age | Occupation     |
+| ------ | --- | -------------- |
+| Kim Cheolsu | 30  | Developer      |
+| Park Younghee | 25 | Designer       |
+
+<!-- HTML comments are kept as is -->
+<!-- This part remains untranslated -->
+
+**Important Text** *Emphasized Text*
 
 ## Starting PBSSD Firmware
 `orc_run` service starts the PBSSD firmware.
@@ -167,7 +196,7 @@ $ systemctl start orc_run
 ```
 
 ## PBSSD Status Check After Starting PBSSD Firmware
-PBSSD firmware status responses for each command are listed below after initiating the PBSSD firmware.
+PBSSD firmware status responses for each command are listed below after starting the PBSSD firmware.
 
 **1. Service Status Verification**  
 The status of the `orc_init` and `orc_run` services can be checked using the following commands. Both should be in `Active: active` state, with `orc_run` specifically showing `running`.
@@ -187,14 +216,14 @@ $ curl -k -X GET \
 $ systemctl status orc_run
 ```
 ```bash
-● orc_run.service - pos-essential-orchestrator
+● orc_run.service - Pos Essential Orchestrator
      Loaded: loaded (/etc/systemd/system/orc_run.service; enabled; vendor preset: enabled)
      Active: active (running) since Tue 2025-10-30 04:51:17 UTC; 3s ago
      ...
 ```
 
 **2. Container Status Verification**  
-To verify the status of containers, execute the following command if the PBSSD firmware service is running correctly. Five containers should be running: `ui`, `prometheus`, `node-exporter`, `opentelemetry-collector`, `anomaly_detector`.
+To verify the container status, execute the following command if the PBSSD firmware service is running correctly. Five containers should be running: `ui`, `prometheus`, `node-exporter`, `opentelemetry-collector`, `anomaly_detector`.
 ```bash
 $ docker ps
 ```
@@ -208,7 +237,7 @@ f1137a330130   pos-essential-management-ui:latest        "python3 rest/app.py"  
 ```
 
 **3. Storage Status Verification**  
-Upon executing the PBSSD firmware via `orc_run` service, PBSSD firmware directly controls NVMe devices from the operating system, making them invisible through the `nvme list` command. Only the SSD where the operating system resides will be displayed. Verify storage status using the following command:
+Upon executing the PBSSD firmware via `orc_run` service, PBSSD firmware directly controls NVMe devices through the operating system, making them invisible through the `nvme list` command. Only the SSD where the operating system resides will be displayed. Storage status can be verified using the following command:
 ```bash
 $ nvme list
 ```
@@ -235,7 +264,7 @@ $ curl -k -X GET \
   "version": "2.6.0"
 }
 ```
-Call the `GET /firmware/status` endpoint of the REST API to retrieve the integrated status of PBSSD firmware along with module statuses and versions of each configuration service. The `Total` field under `FirmwareServices` indicates the overall system status, while other `name` fields represent individual modules comprising the PBSSD firmware. In this example, box initialization is incomplete, leading to `Not Running` status for `pos-essential-ioworker` module responsible for IO within PBSSD firmware, resulting in a `Failed` `Total` status.
+Retrieve the integrated status and module statuses along with version information of each configuration service by calling the `GET /firmware/status` endpoint of the REST API. The `Total` field under `FirmwareServices` indicates the overall system status, while other `name` fields represent individual modules composing the PBSSD firmware. In this example, box initialization is incomplete, leading to `pos-essential-ioworker` module responsible for IO being `Not Running`, resulting in a `Failed` `Total` status.
 ```bash
 $ curl -k -X GET \
 -u 'admin:admin' \
@@ -298,7 +327,7 @@ $ curl -k -X GET \
 
 Call the `GET /devices` endpoint of the REST API to retrieve information about NVMe devices controlled by the PBSSD firmware.
 ```
-REST APIIt seems there might be a typo or incomplete text provided ("의" alone doesn't form a complete phrase). Could you please provide the full Korean text you would like translated? `GET /devices` Endpoint Call them PBSSD Firmware Controlling NVMe Device's Information I confirm it..
+REST APIIt seems there might be a typo or incomplete text provided ("의" alone doesn't form a complete word or phrase in Korean). Could you please provide the full text you would like translated? `GET /devices` Endpoint Call him/her PBSSD Firmware Controlling NVMe Device's Information I confirm it..
 ```
 ```bash
 {
@@ -338,7 +367,7 @@ REST APIIt seems there might be a typo or incomplete text provided ("의" alone 
 }
 
 ## Stopping PBSSD Firmware
-`orc_run` service stopping halts PBSSD firmware execution.
+`orc_run` service stops when halted.
 ```bash
 $ systemctl stop orc_run
 ```
