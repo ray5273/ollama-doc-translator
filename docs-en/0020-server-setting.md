@@ -1,26 +1,28 @@
 # PBSSD Network Configuration (Before Box Initialization)
-Network configuration can be set within PBSSD, but this document guides you through configuring and managing PBSSD's network interface from an NVMe-oF initiator before initialization.
+Network configuration can be set within PBSSD but this document guides you through configuring and managing PBSSD's network interface from an NVMe-oF initiator before initialization.
 
-It is recommended to perform network configuration only before box initialization.
+It is recommended to perform network configuration only in the phase before box initialization.
 
 This document assumes the following goals and environments:
 - **Goal:** Manually configure a static IP address on PBSSD's 100Gbps NVMe-oF interface via a 1Gbps management interface from the initiator
 - **Environment:**
   - Firmware is properly installed on PBSSD, and the `orc_run` service is running
-  - PBSSD has been assigned an IP address 10.1.3.8 via DHCP through a 1Gbps management interface and communicates stably with the initiator
+  - PBSSD has been assigned an IP address `10.1.3.8` via DHCP through a 1Gbps management interface and communicates stably with the initiator
   - PBSSD's 100Gbps NVMe-oF interface currently lacks an assigned IP address and requires manual configuration
 
 > **Example Usage Note:**
 > - Some commands may require `sudo` privileges depending on the environment.
 > - REST API Requests
->   - Assuming the use of an administrator account `admin:admin`.
->   - Assuming the use of a self-signed certificate, commands are written with the `-k` option included for `curl`.
+>   - Assuming the use of an admin account `admin:admin`.
+>   - Assuming a self-signed certificate is used, commands are written with the `-k` option included for `curl`.
 
-## Finding DHCP IP Address
-Use the following command to check the automatically assigned IP address via DHCP. The command execution result confirms that the IP address of the target PBSSD is `10.1.3.8`. (Note: Hostname may vary by device.)
+## Finding DHCP IP
+Use the following command to check the IP address automatically assigned via DHCP:
+
+The command execution result confirms that the IP address of the target PBSSD is `10.1.3.8`. _(Note: Hostname may vary depending on the device.)_
 
 **1. mDNS Discovery**  
-The command `avahi-browse -alr` allows you to check the hostname, IP address, and service information of devices broadcasting over mDNS (Multicast DNS) on your local network.
+Using the command `avahi-browse -alr`, you can check the hostname, IP address, and service information broadcasted via mDNS (Multicast DNS) on the local network.
 ```bash
 $ apt install avahi-utils
 $ avahi-browse -alr
@@ -35,7 +37,7 @@ $ avahi-browse -alr
 ...
 ```
 
-**2. IP ↔ MAC Address Mapping Verification**  
+**2. IP ↔ MAC Mapping Verification**  
 If there has been communication between the initiator and the device, you can verify the IP address ↔ MAC address mapping stored in the local ARP table using the `arp -a` command.
 ```bash
 $ arp -a
@@ -50,7 +52,7 @@ pbssd.local (10.1.3.8) at 7c:c2:55:9f:fd:d0 [ether] on enp9s0f0
 Assuming a scenario where a 100Gbps network interface does not have an assigned IP address, a REST API request is issued through a 1Gbps management port to verify the network settings of the target PBSSD device. The `portNum` value for the 100Gbps network interface is confirmed through the REST API response.
 
 **1. Command**  
-Call the `GET /settings/network` endpoint of the REST API to check network information.
+Invoke the `GET /settings/network` endpoint of the REST API to check network information.
 ```bash
 $ curl -X GET \
 -u '<USERNAME>:<PASSWORD>' \
@@ -102,11 +104,11 @@ $ curl -X GET \
 ```
 
 ## Network Setting
-Before performing **Box Initialization**, network settings are required. Refer to the `3. Command Usage Examples` section to manually configure a static IP address on a 100Gbps network interface.
+Before performing Box Initialization, network settings are required. Refer to the `3. Command Usage Examples` section to manually configure a static IP address on a 100Gbps network interface.
 
 **1. Command**  
 To configure the network settings for the target PBSSD via REST API, call the `PUT /settings/network` endpoint of the REST API. When requesting network settings through the REST API and specifying the `type` field, the `pos-essential-ioworker` service on the target PBSSD automatically starts. In environments without a DHCP server or when a static IP address is permanently used by PBSSD, issue a `PUT /settings/network` request including the `networkPortSettings` object to explicitly configure IP address, DHCP settings, DNS, gateway, etc.
-> This API can only be invoked with an account having administrative privileges.
+> This API can only be invoked with an account that has administrative privileges.
 ```bash
 {
   "common": {
@@ -147,16 +149,16 @@ Below is a description of the fields in the request body:
 
 | Field Name                  | Type              | Required | Description                                              |
 |----------------------------|------------------|---------|--------------------------------------------------|
-| `type`                      | `string`         | Required | Network transmission protocol (e.g., `TCP`, `RDMA`)             |
-| `networkPortSettings`       | `array`          | Optional | List of network port settings                           |
-| `isDhcpEnabled`             | `boolean`        | Required | Whether DHCP is enabled (`true`: automatic assignment, `false`: static IP) |
-| `ip`                        | `string`         | Optional | Static IP address (e.g., `192.168.1.100`)                  |
-| `cidr`                      | `int`            | Optional | Subnet mask length (e.g., `24`)                         |
-| `gateway`                   | `string`         | Optional | Gateway address (e.g., `192.168.1.1`)                   |
-| `dnsPrimaryAddress`         | `string`         | Optional | Primary DNS server (e.g., `8.8.8.8`)                       |
-| `dnsSecondaryAddress`       | `string`         | Optional | Secondary DNS server (e.g., `8.8.4.4`)                       |
-| `mtuBytes`                  | `int`            | Optional | MTU size (default `1500`)                            |
-| `portNum`                   | `int`            | Required | Network port number (e.g., `1`, `2`)                     |
+| `type`                      | `string`          | Required | Network transmission protocol (e.g., `TCP`, `RDMA`)             |
+| `networkPortSettings`       | `array`           | Optional | List of network port settings                          |
+| `isDhcpEnabled`             | `boolean`         | Required | Whether DHCP is enabled (`true`: automatic assignment, `false`: static IP) |
+| `ip`                        | `string`          | Optional | Static IP address (e.g., `192.168.1.100`)                  |
+| `cidr`                      | `int`             | Optional | Subnet mask length (e.g., `24`)                         |
+| `gateway`                   | `string`          | Optional | Gateway address (e.g., `192.168.1.1`)                   |
+| `dnsPrimaryAddress`         | `string`          | Optional | Primary DNS server (e.g., `8.8.8.8`)                       |
+| `dnsSecondaryAddress`       | `string`          | Optional | Secondary DNS server (e.g., `8.8.4.4`)                       |
+| `mtuBytes`                  | `int`             | Optional | MTU size (default `1500`)                              |
+| `portNum`                   | `int`             | Required | Network port number (e.g., `1`, `2`)                     |
 
 
 **2. Command Usage Example: Changing Network Protocol & Verifying Changes**  
@@ -215,8 +217,8 @@ $ curl -k -X GET \
   ]
 }
 ```
-**3. Command Usage Example: Changing Network Protocol & Single Port Configuration & Verifying Changes**  
-This REST API request changes the network on target PBSSD (`10.1.3.8`) to `"type": "tcp"` and modifies the network settings for `"portNum": 2`. Refer to the commands below to configure the network settings for a 100Gbps network interface as required by this document.
+**3. Command Usage Example: Changing Network Protocol & Configuring Single Port Settings & Verifying Changes**  
+This REST API request changes the network on target PBSSD (`10.1.3.8`) to `"type": "tcp"` and modifies network settings for `"portNum": 2`. Refer to the commands below to configure the network settings for a 100Gbps network interface as intended in this document.
 ```bash
 $ curl -k -X PUT \
 -u 'admin:admin' \
@@ -287,7 +289,7 @@ $ curl -k -X GET \
   ]
 }
 ```
-**Example Command Usage:** Changing network protocol and modifying network settings for multiple ports (`portNum: 2, 3`) & verifying changes  
+**Example Usage: Changing Network Protocol and Updating Multiple Port Settings (ports: 2, 3) & Verification**  
 The following example demonstrates a REST API request to modify network settings on the target PBSSD (`10.1.3.8`) to `"type": "tcp"` and simultaneously update network information for multiple ports (`"portNum": 2` and `3`).
 ```bash
 $ curl -k -X PUT \

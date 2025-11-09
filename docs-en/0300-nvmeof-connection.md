@@ -1,9 +1,9 @@
 # NVMe-oF Connection Guide
-This document guides you through connecting PBSSD and an initiator using the NVMe-oF (NVMe over Fabrics) protocol. Once PBSSD firmware installation and box initialization are complete, and the volume is `attached`, PBSSD is ready to process I/O commands.
+This document guides you through connecting PBSSD and an initiator using the NVMe-oF (NVMe over Fabrics) protocol. Once PBSSD firmware installation and box initialization are complete and a volume is `attached`, PBSSD is ready to process I/O commands.
 
 This document assumes the following goals and environments:
-- **Goal:** Connect to the NVMe-oF subsystem of the PBSSD target using a 100Gbps network interface from the initiator
-- **Environment:**
+- **Goal**: Connect to the NVMe-oF subsystem of the PBSSD target using a 100Gbps network interface from the initiator
+- **Environment**:
   - Box initialization is completed, and the intended volume is properly `attached`.
   - PBSSD is connected to the initiator via a 100Gbps network interface using IP address `10.100.3.8`.
   - Box initialization was completed through TCP-based connection, and NVMe-oF utilizes the TCP transport layer.
@@ -12,7 +12,7 @@ This document assumes the following goals and environments:
 > - Some commands may require `sudo` privileges depending on the environment.
 
 ## Discovering NVMe-oF Devices
-Before an initiator connects to NVMe devices provided by PBSSD, it must use the `nvme discover` command to check the list of NVMe-oF subsystems (NVMe Qualified Name, NQN) discoverable in the NVMe-oF network.
+Before the initiator connects to NVMe devices provided by PBSSD, it must use the `nvme discover` command to check the list of NVMe-oF subsystems (NVMe Qualified Name, NQN) discoverable in the NVMe-oF network.
 
 **1. Command**  
 The `nvme discover` command can be used in the following format to retrieve a list of NVMe-oF subsystems corresponding to the specified transport protocol, address (`traddr`), and port (`trsvcid`):
@@ -21,11 +21,11 @@ $ nvme discover -t <TRANSPORT_PROTOCOL> -a <TRANSPORT_ADDRESS> -s <TRANSPORT_SER
 ```
 Here is a description of the command options:
 
-| Option                  | Flag | Description                                                                                           |
-|-------------------------|------|-------------------------------------------------------------------------------------------------------|
-| `transport protocol`   | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`) |
-| `transport address`    | `-a` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment                     |
-| `transport service ID` | `-s` | Network service identifier used in the NVMe-oF (NVMe over Fabrics) environment (PBSSD I/O default port: 1152, 1153) |
+| Option                | Flag | Description                                                                                            |
+|-----------------------|------|--------------------------------------------------------------------------------------------------------|
+| `transport protocol` | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`) |
+| `transport address`   | `-a` | Network transmission protocol address used in the NVMe-oF (NVMe over Fabrics) environment              |
+| `transport service ID`| `-s` | Network service identifier used in the NVMe-oF (NVMe over Fabrics) environment (PBSSD I/O default port: 1152, 1153) |
 
 **2. Command Usage Example**  
 The `nvme discover` command is used to query the list of NVMe-oF subsystems (NVMe Qualified Name, NQN) provided by the target PBSSD.
@@ -125,10 +125,10 @@ sectype: none
 ```
 
 ## Connecting NVMe-oF Devices
-Use the `nvme connect` command to connect to an NVMe-oF subsystem. With this command, the connected subsystem is registered as an NVMe block device in the initiator's operating system, allowing block I/O operations such as partitioning, formatting, and mounting through device files (e.g., `/dev/nvme0n1`) similar to local SSDs.
+Use the `nvme connect` command to connect to an NVMe-oF subsystem. With this command, the connected subsystem is registered as an NVMe block device by the initiator's operating system, allowing block I/O operations such as partition creation, formatting, and mounting via device files (e.g., `/dev/nvme0n1`), similar to local SSDs.
 
 **1. Command**  
-The `nvme connect` command can be used in the following format to connect to an NVMe-oF subsystem specified by the transmission protocol, address (`traddr`), port (`trsvcid`), and NQN (NVMe Qualified Name):
+The `nvme connect` command connects to an NVMe-oF subsystem using the specified transport protocol, address (`traddr`), port (`trsvcid`), and NQN (NVMe Qualified Name) as follows:
 ```bash
 $ nvme list-subsys
 ```
@@ -136,17 +136,17 @@ Here is a description of the command options:
 
 | Option  | Flag | Description                                                                                                                                                                                                 |
 |---------|------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `transport protocol` | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`)                                                                                                    |
+| `transport protocol` | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`)                                                                                                     |
 | `transport address` | `-a` | Network transmission protocol address used in the NVMe-oF environment                                                                                                                                      |
-| `transport service ID` | `-s` | Network service identifier used in the NVMe-oF environment (PBSSD I/O default port: 1152, 1153)                                                                                                          |
-| `nqn name`             | `-n` | Unique name identifying the NVMe-oF target (target) (`nvme connect` command uses `subtype` as `subnqn` for `nvme subsystem`)                                                                               |
+| `transport service ID` | `-s` | Network service identifier used in the NVMe-oF environment (PBSSD I/O default port: 1152, 1153)                                                                                                           |
+| `nqn name`             | `-n` | Unique name identifying the NVMe-oF target (target) (`nvme connect` command uses `subtype` as `nvme subsystem` `subnqn`)                                                                                    |
 
-**2. Command Usage Examples**  
-After discovering NVMe-oF subsystems using the `nvme discover` command, identify the NQN of the subsystem with `traddr` as `10.10.3.8`, then specify this NQN as the `<NQN_NAME>` argument in the `nvme connect` command to connect to the target PBSSD subsystem:
+**2. Command Examples**  
+After using the `nvme discover` command to identify NVMe-oF subsystems, verify the NQN of the subsystem with `traddr` set to `10.100.3.8`, then specify this NQN as `<NQN_NAME>` in the `nvme connect` command to connect to the target PBSSD subsystem:
 ```bash
-$ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:bcf5b9ad-7697-4615-b093-7b675f2e9c0f -a 10.10.3.8 -s 1152
-$ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:c0e7d24f-7838-43c8-bd15-c2dd506e99aa -a 10.10.3.8 -s 1152
-$ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19-bc9d-20d71df29c57 -a 10.10.3.8 -s 1152
+$ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:bcf5b9ad-7697-4615-b093-7b675f2e9c0f -a 10.100.3.8 -s 1152
+$ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:c0e7d24f-7838-43c8-bd15-c2dd506e99aa -a 10.100.3.8 -s 1152
+$ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19-bc9d-20d71df29c57 -a 10.100.3.8 -s 1152
 ```
 ```bash
 connecting to device: nvme0
@@ -165,7 +165,7 @@ Node                  Generic               SN                   Model          
 /dev/nvme2n1          /dev/ng2n1            S871NG0Y200015       undefined                                0x1        536.87 MB / 536.87 MB    512 B +  0 B   25.05   
 # Local NVMe devices may also be listed here.
 ```
-Use the `nvme list-subsys` command to check connected NVMe-oF subsystems (NVMe Qualified Names, NQN):
+Use the `nvme list-subsys` command to verify connected NVMe-oF subsystems (NVMe Qualified Name, NQN):
 ```bash
 $ nvme list-subsys
 ```
@@ -184,54 +184,115 @@ nvme-subsys2 - NQN=nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19
 ...
 ```
 
-# Example Markdown in Korean:
+# Example Markdown in English:
 
-```
-# Please provide the Korean text you would like translated. Markdown Example
+```markdown
+# Heading 1
+## Heading 2
 
-## Title
+This is **bold** text and *italic* text.
 
-This Part **Emphasis**It seems there might be a typo or missing context in your request as "를" by itself does not form a complete phrase or sentence in Korean for translation. Could you please provide the full text you would like translated? I use it..
+- List item 1
+- List item 2
 
-- List Item 1
-- List Item 2
-- List Item 3
-
-> Quote Example
+[Link Text](URL)
 ```
 
-## Title 1
-This Section is It seems there might be a misunderstanding in your request as no Korean text was provided for translation. Could you please provide the Korean text you would like translated into English? Written Markdown This is an example..
+## Basic structure
 
-### Title 2
-* Emphasized Please provide the Korean text you would like translated.
-* List Item 1
-* List Item 2
+This The document is Please provide the Korean text you would like translated. Markdown's Basic Structure and How to use it It shows..
 
-- Order List Item 1
-- Order List Item 2
+### List
 
-Code Block Example:
+- **Ordered list**
+  - 1Burn Item
+  - 2Burn Item
+  - 3Burn Item
+
+- **Unordered list**
+  - Apple
+  - Banana
+  - Orange
+
+### Emphasis
+
+*Italics*
+**Boldly**
+
+### Code block
+
 ```python
 def hello_world():
-    print("Hello, World!")
+  print("Hello, World!")
 ```
 
-Link Example: [Naver](https://www.naver.com)
+### Links and images
 
-Table Example:
-| Heat 1 | Heat 2 | Heat 3 |
-|------|------|------|
-| Data 1 | Data 2 | Data 3 |
-| Data 4 | Data 5 | Data 6 |
+[Please provide the Korean text you would like translated. Website](https://example.com/korean)
+![Please provide the Korean text you would like translated to English. Image](https://example.com/korean-image.jpg)
 
-<!-- This The translation of "주석은" to English is "The annotation is" or more contextually appropriate might depend on the full sentence, but generally, it refers to "The comment" or "The annotation." Without additional context, this is the direct translation. As is It remains/is maintained. -->
+### Table
 
-- 1Stage Work
-- 2Stage Work
-- 3Stage Work
+| Language | Pronunciation | Meaning |
+|---|---|---|
+| Please provide the Korean text you would like translated. | Hangul | It seems there might be a misunderstanding as no Korean text was provided for translation in your request. Could you please provide the specific Korean text you would like translated into English? |
+| It seems there might be a misunderstanding as no Korean text was provided for translation in your request. Could you please provide the Korean text you would like translated into English? | English | It seems there might be a misunderstanding as no Korean text was provided for translation in your request. Could you please provide the Korean text you would like translated into English? If your intent was simply to acknowledge or indicate an English context ("영어"), then no translation is needed as it already signifies "English." Please clarify if further assistance is required. |
+| It seems there might be a misunderstanding in your request as the text provided is in Korean, not Spanish. Could you please provide the Korean text you would like translated into English? If you intended to request a translation into Spanish, please clarify or provide the text accordingly. | Español | It seems there might be a misunderstanding in your request as the text provided is in Korean, not Spanish. Could you please provide the Korean text you would like translated into English? If you intended to ask about Spanish, please clarify or provide the Spanish text for translation. |
 
-**Important text** *Maintain unchanged format*
+<!-- This Part Translate this Korean text to English: 
+
+"번역하지" translates to "Do not translate" or "Don't translate". Does not -->
+<!-- Please provide the Korean text you would like translated. Comment Example -->
+```
+
+English translation:
+
+```
+# Example of Korean Markdown Structure
+
+## Basic Structure
+
+This document demonstrates the basic structure and usage of Korean Markdown.
+
+### Lists
+
+- **Ordered List**
+  - Item 1
+  - Item 2
+  - Item 3
+
+- **Unordered List**
+  - Apple
+  - Banana
+  - Orange
+
+### Emphasis
+
+*Italic*
+**Bold**
+
+### Code Blocks
+
+```python
+def hello_world():
+  print("Hello, world!")
+```
+
+### Links and Images
+
+[Korean Website](https://example.com/korean)
+![Korean Image](https://example.com/korean-image.jpg)
+
+### Tables
+
+| Language | Pronunciation | Meaning |
+|---|---|---|
+| Korean | Hangul | Hangul |
+| English | English | English |
+| Spanish | Español | Spanish |
+
+<!-- This part remains unchanged -->
+<!-- Example of Korean Comment -->
 
 ## Disconnect NVMe-oF Devices
 Use the `nvme disconnect` and `nvme disconnect-all` commands to disconnect from the NVMe-oF subsystem.

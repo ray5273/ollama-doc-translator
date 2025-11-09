@@ -1,8 +1,8 @@
 # PBSSD Box Initialization Guide
-Box Initialization is the process of setting up NVMe-oF (NVMe over Fabrics) target PBSSD. While initialization can occur internally within PBSSD, this document guides the procedure for initializing PBSSD through an NVMe-oF initiator using REST API.
+Box Initialization is the process of setting up NVMe-oF (NVMe over Fabrics) target PBSSD. While initialization can occur internally within PBSSD, this document guides the procedure for initializing PBSSD through an NVMe-oF initiator.
 
 This document assumes the following goals and environment:
-- **Goal:** Initialize the Box through PBSSD using `volume`, `nvmeof`, `tcp` modes via REST API
+- **Goal:** Initialize Box in `volume`, `nvmeof`, `tcp` modes via REST API to PBSSD
 - **Environment:**
   - PBSSD firmware installation, execution (orc_run), and network configuration are completed.
   - PBSSD has been assigned the IP address `10.1.3.8`.
@@ -150,15 +150,8 @@ $ curl -k -X POST \
 ## PBSSD Status Check After Box Initialization
 After successfully completing box initialization, responses for each command have been documented.
 
-**1. PBSSD Status Verification via REST API**  
+**1. Checking PBSSD Status via REST API**  
 Invoke the `GET /firmware/status` endpoint of the REST API to verify the integrated firmware status, module-specific statuses, and versions of PBSSD. If box initialization was successful, `pos-essential-orchestrator` and `pos-essential-ioworker` should be in `Running` state, with `Total` status indicating `OK`.
-
-```bash
-$ curl -k -X GET \
--u 'admin:admin' \
--H 'Accept: application/json' \
-'https://10.1.3.8/api/v1/firmware/status'
-```
 
 ```bash
 {
@@ -214,6 +207,60 @@ $ curl -k -X GET \
   }
 }
 ```
+
+```bash
+{
+  "FirmwareServices": [
+    {
+      "name": "Total",
+      "status": "OK"
+    },
+    {
+      "name": "pos-essential-orchestrator",
+      "status": "Running",
+      "version": "2.6.0"
+    },
+    {
+      "name": "pos-essential-ioworker0",
+      "status": "Running",
+      "version": "2.6.0"
+    },
+    {
+      "name": "pos-essential-ssd-anomaly-detector",
+      "status": "Running",
+      "version": "2.6.0"
+    },
+    {
+      "name": "pos-essential-management-ui",
+      "status": "Running",
+      "version": "2.6.0"
+    },
+    {
+      "name": "pos-essential-opentelemetry-collector (Third Party)",
+      "status": "Running",
+      "version": "0.77.0 (2.6.0)"
+    },
+    {
+      "name": "pos-essential-node-exporter (Third Party)",
+      "status": "Running",
+      "version": "2.6.0 (v1.6.0)"
+    },
+    {
+      "name": "pos-essential-prometheus (Third Party)",
+      "status": "Running",
+      "version": "2.6.0 (v2.47.0)"
+    },
+    {
+      "name": "pos-essential-ipmi-exporter (Third Party)",
+      "status": "Running",
+      "version": "1.6.1"
+    }
+  ],
+  "common": {
+    "message": "Firmware status retrieved successfully",
+    "relatedJobs": null
+  }
+}
 
 ---
 
