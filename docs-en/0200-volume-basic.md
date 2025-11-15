@@ -1,7 +1,7 @@
 # Volume and Volume Store: Basic Operations
 This document explains basic REST API functionalities related to volumes and provides usage examples for each API.
 
-This document covers the following topics:
+The following topics are covered in this document:
 1. [Logical Volume Store](#logical-volume-store)  
    1.1. Creation  
    1.2. Retrieval  
@@ -13,9 +13,9 @@ This document covers the following topics:
 3. [Exposing Logical Volume via NVMe-oF](#expose-logical-volume-to-external-hosts-via-nvme-of)  
 
 This document assumes the following goals and environments:
-- **Goal:** Manage volumes of PBSSD through REST APIs.
-- **Environment:**
-  - PBSSD is running normally with box initialization completed, with `Total` status set to `OK`.
+- **Goal**: Manage volumes of PBSSD through REST APIs.
+- **Environment**:
+  - PBSSD is running normally with box initialization completed, with the `Total` status set to `OK`.
   - PBSSD has been assigned the IP address `10.1.3.8`.
   - The device information referenced in examples is as follows:
     ```bash
@@ -49,11 +49,11 @@ This document assumes the following goals and environments:
 >   - self-signed Certificate Used it Assuming, `curl` According to instructions `-k` Options Including command I have written it..
 
 ## Logical Volume Store
-LVS(Logical Volume Store)Is Physical NVMe Device Or LVol Above Hierarchy Composed, The user According to need Following Size and performance Other Volume Dynamically Creation·Delete Water To enable/make possible Supporting Abstraction It is a hierarchy..
+LVS(Logical Volume Store)This appears to be an incomplete text snippet, specifically a particle in Korean ("는") which typically marks the topic of a sentence but lacks context for translation beyond indicating emphasis or defining a subject. Without further context, a direct translation isn't fully applicable here. Could you provide more text for translation? Physical NVMe Device Or LVol Above Hierarchy Composed, The user According to need Following Size and performance Other Volume Dynamically Creation·Delete Water To enable/make possible Supporting Abstraction It is a hierarchy..
 
 **1. Creation**   
-REST APIIt seems there might be a typo or incomplete text provided ("의" alone doesn't form a complete phrase). Could you please provide the full Korean text you would like translated? `POST /volumes/lvstore` Endpoint Call to LVSIt seems like your text might be incomplete. Could you please provide the full Korean text you would like translated? I create..
-> This APIThis appears to be an incomplete Korean text snippet, specifically a particle ("는") often used to mark the topic of a sentence. Without further context, a direct translation isn't fully possible, but the particle "는" generally translates to "is" or "as" when indicating what something "is" or emphasizing the subject in English. Could you provide more context or text for a precise translation? Manager Authority Exists By account only to call Water It exists..
+REST APIIt seems there might be a typo or incomplete text provided ("의" alone doesn't form a complete phrase). Could you please provide the full Korean text you would like translated? `POST /volumes/lvstore` Endpoint Call them LVSIt seems there might be a typo or missing text in your request as "를" alone does not provide enough context for translation. Could you please provide the full Korean text you would like translated? I create..
+> This APIThis Korean text "는" translates to "is" or "are" in English, depending on the context in which it is used. Without additional context, a direct translation cannot specify which form is most appropriate. Generally, it serves as a subject marker or verb ending in sentences. Manager Authority Exists By account only To call Water It exists..
 ```bash
 $ curl -k -X POST \
 -u <USERNAME>:<PASSWORD> \
@@ -70,16 +70,17 @@ $ curl -k -X POST \
 ```
 
 Below is Request The main text Field Regarding This is an explanation..
+
 | Field name                                | Type               | Essential Whether |                                   |
 |--------------------------------------|------------------|---------|-----------------------------------|
-| `alias`                              | `string`         | Essential     | LVSIt seems like your text might be incomplete. Could you please provide the full Korean text you would like translated? To create Location (ex. bdev Or LVol) |
-| `lvs_name`                           | `string`         | Essential     | Creating LVS Name                      |
-| `cluster_sz`                         | `uint32`         | Choice     | Cluster Size                         |
+| `alias`                              | `string`         | Essential     | LVSIt seems there might be a typo or missing text in your request. Could you please provide the Korean text you would like translated to English? Creating Location (ex. bdev Or LVol) |
+| `lvs_name`                           | `string`         | Essential     | To create LVS Name                      |
+| `cluster_sz`                         | `uint32`         | Selection     | Cluster Size                         |
 | `clear_method`                       | `string`         | Choice     | LVS Creation The provided Korean text "전" translates to "before" in English. However, please note that context is crucial for accurate translation, and "전" can have different meanings depending on its usage in a sentence. Without additional context, this is the most straightforward translation. Storage Space Initialization Method        |
-| `num_md_pages_per_cluster_ratio`     | `uint32`         | Selection     | Per cluster Metadata Page Ratio          |
+| `num_md_pages_per_cluster_ratio`     | `uint32`         | Choice     | Per cluster Metadata Page Ratio          |
 
 **2. Inquiry**  
-REST APIOf `GET /volumes/lvstore` Endpoint Call them LVSIt seems like your text might be incomplete. Could you please provide the full Korean text you would like translated? Checking.
+REST APIIt seems there might be a typo or incomplete text provided ("의" alone doesn't form a complete phrase). Could you please provide the full Korean text you would like translated? `GET /volumes/lvstore` Endpoint Call them LVSIt seems there might be a typo or missing text in your request as "를" alone does not provide enough context for translation. Could you please provide the full Korean text you would like translated? Checking.
 ```bash
 curl -k -X GET \
 -u <USERNAME>:<PASSWORD> \
@@ -88,12 +89,12 @@ curl -k -X GET \
 ```
 
 Below is Query parameters to Regarding This is an explanation..
-| Field Name                                   | Type               | Essential Whether |             |
+| Field name                                   | Type               | Essential Whether |             |
 |-----------------------------------------|------------------|---------|-------------|
 | `lvs_name`                              | `string`         | Choice     | LVStore Name |
 
 **3. Delete**  
-REST APIIt seems there might be a typo or incomplete text provided ("의" alone doesn't form a complete phrase). Could you please provide the full Korean text you would like translated? `DELETE /volumes/lvstore` Endpoint Call him/her LVSIt seems like your text might be incomplete. Could you please provide the full Korean text you would like translated? Deletes it.
+REST APIIt seems there might be a typo or incomplete text provided ("의" alone doesn't form a complete phrase). Could you please provide the full Korean text you would like translated? `DELETE /volumes/lvstore` Endpoint Call them LVSPlease provide the Korean text you would like translated. Deletes it..
 ```bash
 curl -k -X DELETE \
 -H 'Content-Type: application/json' \
@@ -105,7 +106,9 @@ curl -k -X DELETE \
 'https://<IP_ADDRESS>/api/v1/volumes/lvstore'
 ```
 
-Below is Request The main text In the field Regarding This is an explanation..
+Below is Request The text provided seems incomplete as "본문의" translates to "of the main text" or "of the passage," but lacks context for a full translation. Assuming you intended to provide more text for translation, please offer the complete Korean text for an accurate translation. Based solely on the given word:
+
+"Of the main text" or "Of the passage Field Regarding This is an explanation..
 
 | Field name          | Type              | Essential Whether |              |
 |---------------|------------------|---------|--------------|
@@ -114,7 +117,9 @@ Below is Request The main text In the field Regarding This is an explanation..
 
 
 **4. Example Usage of Commands**  
-`bdevName`This `nvme9472n1`In English, "인" by itself doesn't provide enough context for translation as it can function differently depending on usage (e.g., as a particle, suffix). Could you please provide more context or the full text? Device LVSIt seems like your text might be incomplete. Could you please provide the full Korean text you would like translated? Create For Below command I use it..
+`bdevName`This `nvme9472n1`In English, the provided Korean text "인" translates to "Person" or "People" depending on context, but without further context, it's a standalone word often used as a suffix or standalone meaning "as a person" or "personally." A direct translation isn't fully accurate without additional context, but generally:
+
+Person/People Device LVSIt seems like your text might be incomplete. Could you please provide the full Korean text you would like translated? Create For Below command I use it..
 ```bash
 $ curl -k -X POST \
 -u 'admin:admin' \
@@ -207,9 +212,9 @@ https://<IP_ADDRESS>/api/v1/volumes/lvol
 
 Here is a description of the query parameters:
 
-| Field Name               | Type       | Required | Description                                      |
-|-------------------------|------------|---------|--------------------------------------------------|
-| `alias`                 | `string`   | No      | Path to the LVol                                 |
+| Field Name              | Type              | Required | Description                                |
+|------------------------|------------------|---------|-------------------------------------------|
+| `alias`                | `string`         | No      | Path to the LVol                           |
 
 **3. Deletion**  
 Delete the LVS by calling the `DELETE /volumes/lvol` endpoint of the REST API.
@@ -225,12 +230,12 @@ curl -k -X DELETE \
 
 Here is a description of the fields in the request body:
 
-| Field Name          | Type       | Required | Description                                      |
-|--------------------|------------|---------|--------------------------------------------------|
-| `alias`            | `string`   | Yes     | Path to the LVol to be deleted                    |
+| Field Name          | Type              | Required | Description                                |
+|--------------------|------------------|---------|-------------------------------------------|
+| `alias`            | `string`         | Yes     | Path to the LVol to be deleted             |
 
 **4. Command Examples**  
-Use the following command to create an LVol named `lvol9472_1st` under an LVS named `lvs9472_1st`:
+Use the following command to create an LVol named `lvol9472_1st` under an LVS named `lvs9472_1st`.
 ```bash
 $ curl -k -X POST \
 -u 'admin:admin' \
@@ -293,12 +298,12 @@ curl -k -X DELETE \
 ```
 
 ## Expose Logical Volume to External Hosts via NVMe-oF
-To access the volume of PBSSD through an initiator using NVMe-oF (NVMe over Fabrics), you must first attach the volume.
-Once attached, the volume is recognized correctly by the initiator as a block device via NVMe-oF connection, enabling file I/O operations. [The process of connecting the initiator to PBSSD via NVMe-oF is covered in the NVMe-oF page.](0300-nvmeof-connection.md)
+To access the volume in PBSSD from an initiator through NVMe-oF (NVMe over Fabrics), you must first attach the volume.
+Once attached, the volume is recognized as a block device by the initiator through a normal NVMe-oF connection, enabling file I/O operations. [The process of connecting an initiator to PBSSD via NVMe-oF is covered in the NVMe-oF page.](0300-nvmeof-connection.md)
 
 **1. Command**  
-Invoke the `POST /volumes/lvol/attach` endpoint of the REST API to attach an LVol.
-> This API can only be called by an account with administrative privileges.
+Use the `POST /volumes/lvol/attach` endpoint of the REST API to attach an LVol.
+> This API can only be invoked by accounts with administrative privileges.
 ```bash
 curl -k -X POST \
 -u <USERNAME>:<PASSWORD> \
