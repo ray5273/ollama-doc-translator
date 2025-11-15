@@ -1,343 +1,89 @@
-# PBSSD Network Configuration (Before Box Initialization)
-Network configuration (network setting) can be performed internally within PBSSD, but this document guides you through setting up and managing the network interface of PBSSD on an NVMe-oF initiator.
+# Translation Test: Experimental Network Configuration Guide
+This document explains the process of configuring network interfaces for virtual equipment `Nebula Node` used in a lab environment. Do not apply this to actual hardware.
 
-It is recommended to perform network configuration only before box initialization.
+### Assumed Environment
+- **Objective**: Assign a static IP to a high-speed data port via a management interface on an educational control node.
+- **Environment**:
+  - The `nebula-orchestrator` service is running, and the management interface is accessible at `172.20.0.8` address.
+  - The data port does not have an IP address yet and requires manual configuration for RDMA testing.
 
-This document assumes the following goals and environments:
-- **Goal:** Manually configure a static IP address on PBSSD's 100Gbps NVMe-oF interface via a 1Gbps management interface on the initiator
-- **Environment:**
-  - Firmware is properly installed on PBSSD, and the `orc_run` service is running
-  - PBSSD has been assigned an IP address 10.1.3.8 via DHCP through a 1Gbps management interface and communicates stably with the initiator
-  - PBSSD's 100Gbps NVMe-oF interface currently lacks an assigned IP address and requires manual configuration
+> **Lab Note**
+> - Adjust commands requiring `sudo` privileges according to your environment.
+> - Always use the `-k` flag for REST calls assuming a self-signed certificate.
 
-> **Example Usage Note:**
-> - Some commands may require `sudo` privileges depending on the environment.
-> - REST API Requests
->   - Assuming the use of an administrator account `admin:admin`.
->   - Assuming the use of a self-signed certificate, commands are written with the `-k` option included for `curl`.
-
-## Finding DHCP IP
-Use the following command to check the IP address automatically assigned via DHCP:
-
-The command execution result confirms that the IP address of the target PBSSD is `10.1.3.8`. (Note: The hostname may vary depending on the device.)
-
-**1. mDNS Discovery**  
-Using the command `avahi-browse -alr`, you can check the hostname, IP address, and service information of devices broadcasting over mDNS (Multicast DNS) on your local network.
+## 1. Finding DHCP Address
+### 1.1 mDNS Discovery
 ```bash
-$ apt install avahi-utils
-$ avahi-browse -alr
-```
-```bash
-...
-= ens17f0np0 IPv6 spdk0_10.1.3.8_1153    _nvme-disc._tcp    local
-   hostname = [pbssd.local]
-   address = [10.1.3.8]
-   port = [1153]
-   txt = ["nqn=nqn.2014-08.org.nvmexpress.discovery" "p=tcp"]
-...
+$ avahi-browse -alr | grep nebula
 ```
 
-**2. IP ↔ MAC Mapping Verification**  
-If there has been communication between the initiator and the device, you can verify the IP address ↔ MAC address mapping stored in the local ARP table using the `arp -a` command.
+### 1.2 ARP Table Check
 ```bash
-$ arp -a
-```
-```bash
-... 
-pbssd.local (10.1.3.8) at 7c:c2:55:9f:fd:d0 [ether] on enp9s0f0
-...
+$ arp -a | grep nebula
 ```
 
-## PBSSD Firmware Network Check
-Assuming a scenario where a 100Gbps network interface does not have an assigned IP address, a REST API request is issued through a 1Gbps management port to verify the network settings of the target PBSSD device. The `portNum` value for the 100Gbps network interface is confirmed via the REST API response.
-
-**1. Command**  
-Call the `GET /settings/network` endpoint of the REST API to check network information.
+## 2. Checking Current Network Status
+### 2.1 REST Request Example
 ```bash
-$ curl -X GET \
--u '<USERNAME>:<PASSWORD>' \
--H 'Accept: application/json'\
-'https://<IP_ADDRESS>/api/v1/settings/network'
-```
-
-**2. Command Usage Example**  
-In the example below, `"portNum": 2` represents the port number where the 100Gbps network interface is located.
-```bash
-$ curl -X GET \
--u 'admin:admin' \
+$ curl -k -X GET \
+-u 'trainer:trainer' \
 -H 'Accept: application/json' \
-'https://10.1.3.8/api/v1/settings/network'
+'https://172.20.0.8/api/v1/training/network'
 ```
+
+### 2.2 Expected Response
 ```bash
 {
-  "common": {
-    "message": "API Server successfully get the network settings.",
-    "relatedJobs": null
-  },
-  "networkPortSettings": [
-    ...
-    {
-      "cidr": 64,
-      "ip": "fe80::7ec2:54ef:ff43:ae80",
-      "isDhcpEnabled": false,
-      "mtuBytes": 1500,
-      "portNum": 2,
-      "displayName": "Mellanox Technologies MT2892 Family [ConnectX-6 Dx]",
-      "health": "UP",
-    },
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "gateway": "10.1.5.22",
-      "ip": "10.1.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 1500,
-      "portNum": 4,
-      "displayName": "Intel Corporation I350 Gigabit Network Connection",
-      "health": "UP",
-    }
-    ...
-  ]
+  "ports": [
+    {"portNum": 1, "displayName": "Intel X710", "ip": "172.20.0.8"},
+    {"portNum": 3, "displayName": "Mellanox CX6", "ip": null}
+  ],
+  "message": "training snapshot"
 }
 ```
 
-## Network Setting
-Before performing Box Initialization, network settings are required. Refer to the `3. Command Usage Examples` section to manually configure a static IP address on a 100Gbps network interface.
+## 3. Applying Network Configuration
+### 3.1 Request Body Structure
+| Field Name | Type | Description |
+|------------|------|-------------|
+| `type`     | `string` | Protocol used (`tcp`, `rdma`) |
+| `networkPortSettings` | `array` | List of configurations per port |
+| `portNum`  | `int`   | Target port number |
+| `ip`       | `string` | IP address to configure |
+| `cidr`     | `int`   | Subnet |
+| `gateway`  | `string` | Gateway |
 
-**1. Command**  
-To configure the network settings for the target PBSSD via REST API, call the `PUT /settings/network` endpoint. When requesting network settings through the REST API and specifying the `type` field, the `pos-essential-ioworker` service on the target PBSSD automatically starts. In environments without a DHCP server or when a static IP address is permanently used by PBSSD, issue a `PUT /settings/network` request including the `networkPortSettings` object to explicitly configure IP address, DHCP settings, DNS, gateway, etc.
-> This API can only be invoked with an account having administrative privileges.
+### 3.2 Command Example
 ```bash
-$ curl -X PUT \
--u '<USERNAME>:<PASSWORD>' \
+$ curl -k -X PUT \
+-u 'trainer:trainer' \
 -H 'Content-Type: application/json' \
--H 'Accept: application/json' \
 -d '{
-  "type": "{network protocol}",
+  "type": "rdma",
   "networkPortSettings": [
     {
-      "isDhcpEnabled": <IS_DHCP>,
-      "ip": "<IP_ADDRESS>",
-      "cidr": <CIDR>,
-      "gateway": "<GATEWAY_IP>",
-      "dnsPrimaryAddress": "<PRIMARY_DNS_IP>",
-      "dnsSecondaryAddress": "<SECONDARY_DNS_IP>",
-      "mtuBytes": <MTU_BYTES>,
-      "portNum": <PORT>
+      "portNum": 3,
+      "ip": "192.168.40.10",
+      "cidr": 24,
+      "gateway": "192.168.40.1",
+      "dnsPrimaryAddress": "1.1.1.1",
+      "dnsSecondaryAddress": "8.8.8.8",
+      "isDhcpEnabled": false
     }
   ]
 }' \
-'https://{IP_ADDRESS}/api/v1/settings/network'
-```
-Below is a description of the fields in the request body:
-
-| Field Name                  | Type              | Required | Description                                              |
-|----------------------------|------------------|---------|--------------------------------------------------|
-| `type`                      | `string`         | Required | Network transmission protocol (e.g., `TCP`, `RDMA`)             |
-| `networkPortSettings`       | `array`          | Optional | List of network port settings                           |
-| `isDhcpEnabled`             | `boolean`        | Required | Whether DHCP is enabled (`true`: automatic assignment, `false`: static IP) |
-| `ip`                        | `string`         | Optional | Static IP address (e.g., `192.168.1.100`)                  |
-| `cidr`                      | `int`            | Optional | Subnet mask length (e.g., `24`)                         |
-| `gateway`                   | `string`         | Optional | Gateway address (e.g., `192.168.1.1`)                   |
-| `dnsPrimaryAddress`         | `string`         | Optional | Primary DNS server (e.g., `8.8.8.8`)                       |
-| `dnsSecondaryAddress`       | `string`         | Optional | Secondary DNS server (e.g., `8.8.4.4`)                       |
-| `mtuBytes`                  | `int`            | Optional | MTU size (default `1500`)                            |
-| `portNum`                   | `int`            | Required | Network port number (e.g., `1`, `2`)                     |
-
-
-**2. Command Usage Example: Changing Network Protocol & Verification**  
-This REST API request changes the network connected to target PBSSD (`10.1.3.8`) to `"type": "tcp"`.
-```bash
-$ curl -k -X PUT \
--u 'admin:admin' \
--H 'Content-Type: application/json' \
--H 'Accept: application/json' \
--d '{ "type": "tcp"}' \
-'https://10.1.3.8:443/api/v1/settings/network'
-```
-```bash
-{"message":"API server successfully set the network settings","relatedJobs":null}
-```
-To verify the changes, retrieve network information.
-```bash
-$ curl -k -X GET \
--u 'admin:admin' \
--H 'Accept: application/json'
-'https://10.1.3.8/api/v1/settings/network'
-```
-```bash
-{
-  "common": {
-    "message": "API Server successfully get the network settings.",
-    "relatedJobs": null
-  },
-  "networkPortSettings": [
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "gateway": "10.1.5.22",
-      "ip": "10.1.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 1500,
-      "portNum": 4,
-      "displayName": "Intel Corporation I350 Gigabit Network Connection",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-    {
-      "cidr": 64,
-      "ip": "fe80::7ec2:54ef:ff43:ae80",
-      "isDhcpEnabled": false,
-      "mtuBytes": 1500,
-      "portNum": 2,
-      "displayName": "Mellanox Technologies MT2892 Family [ConnectX-6 Dx]",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-  ]
-}
-```
-**3. Command Usage Example: Changing Network Protocol & Single Port Configuration & Verification**  
-This REST API request changes the network connected to target PBSSD (`10.1.3.8`) to `"type": "tcp"` and modifies the network settings for `"portNum": 2`. Refer to the commands below to configure the network settings for your target 100Gbps network interface as needed.
-```bash
-$ curl -k -X PUT \
--u 'admin:admin' \
--H 'Content-Type: application/json' \
--H 'Accept: application/json' \
--d '{ "type": "tcp", "networkPortSettings": [{"isDhcpEnabled": false,"ip":"10.100.3.8", "cidr": 16, "gateway": "10.1.5.22", "dnsPrimaryAddress": "10.1.1.13", "dnsSecondaryAddress": "12.26.3.228", "mtuBytes": 9000, "portNum": 2}]}' \
-'https://10.1.3.8:443/api/v1/settings/network'
-```
-```bash
-{"message":"API server successfully set the network settings","relatedJobs":null}
+'https://172.20.0.8/api/v1/training/network'
 ```
 
-Check network information for change results.
+## 4. Verification of Results
+1. Requery using `curl -k -X GET ...` to confirm if the IP has been applied to `portNum` 3.
+2. Test gateway reachability with `ping 192.168.40.1 -c 2`.
+3. Record fabric latency using `rdma-statistic collect`.
 
-```bash
-$ curl -k -X GET \
--u 'admin:admin' \
--H 'Accept: application/json'
-'https://10.1.3.8/api/v1/settings/network'
-```
-
-```bash
-{
-  "common": {
-    "message": "API Server successfully get the network settings.",
-    "relatedJobs": null
-  },
-  "networkPortSettings": [
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "gateway": "10.1.5.22",
-      "ip": "10.1.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 1500,
-      "portNum": 4,
-      "displayName": "Intel Corporation I350 Gigabit Network Connection",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "ip": "10.100.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 9000,
-      "portNum": 2,
-      "displayName": "Mellanox Technologies MT2892 Family [ConnectX-6 Dx]",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-  ]
-}
-```
-**Example Command Usage:** Changing network protocols and modifying network settings for multiple ports (`portNum: 2, 3`) on the target PBSSD (`10.1.3.8`) and verifying changes.
-
-```bash
-$ curl -k -X PUT \
--u 'admin:admin' \
--H 'Content-Type: application/json' \
--H 'Accept: application/json' \
--d '{ "type": "tcp", "networkPortSettings": [{"isDhcpEnabled": false,"ip":"10.100.3.8", "cidr": 16, "gateway": "10.1.5.22", "dnsPrimaryAddress": "10.1.1.13", "dnsSecondaryAddress": "12.26.3.228", "mtuBytes": 9000, "portNum": 2},{"isDhcpEnabled": false,"ip":"10.100.3.9", "cidr": 16, "gateway": "10.1.5.22", "dnsPrimaryAddress": "10.1.1.13", "dnsSecondaryAddress": "12.26.3.228", "mtuBytes": 9000, "portNum": 2}]}'\
-'https://10.1.3.8:443/api/v1/settings/network'
-```
-
-```bash
-{"message":"API server successfully set the network settings","relatedJobs":null}
-```
-
-Check network information for change results again.
-
-```bash
-$ curl -k -X GET \
--u 'admin:admin' \
--H 'Accept: application/json'
-'https://10.1.3.8/api/v1/settings/network'
-```
-
-```bash
-{
-  "common": {
-    "message": "API Server successfully get the network settings.",
-    "relatedJobs": null
-  },
-  "networkPortSettings": [
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "gateway": "10.1.5.22",
-      "ip": "10.1.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 1500,
-      "portNum": 4,
-      "displayName": "Intel Corporation I350 Gigabit Network Connection",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "ip": "10.100.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 9000,
-      "portNum": 2,
-      "displayName": "Mellanox Technologies MT2892 Family [ConnectX-6 Dx]",
-      "health": "UP",
-      "type": "tcp"
-    },
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "ip": "10.100.3.9",
-      "isDhcpEnabled": false,
-      "mtuBytes": 9000,
-      "portNum": 3,
-      "displayName": "Mellanox Technologies MT2892 Family [ConnectX-6 Dx]",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-  ]
-}
-```
+## 5. Troubleshooting Scenarios
+- **Response Delay**: If REST calls delay for more than 5 seconds, check the `journalctl -u nebula-orchestrator` logs.
+- **MTU Mismatch**: Given that the experimental network requires `mtuBytes 9000`, add this field to the PUT request if necessary.
+- **Incorrect Authentication Information**: If a `401` response occurs, retry with a newly issued lab account credentials.
 
 ---
 

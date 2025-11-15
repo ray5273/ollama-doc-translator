@@ -1,219 +1,52 @@
-# PBSSD Box Initialization Guide
-Box Initialization is the process of setting up NVMe-oF (NVMe over Fabrics) target PBSSD. While initialization can occur internally within PBSSD, this document guides the procedure for initializing PBSSD through an NVMe-oF initiator.
+# Translation Test: Virtual Box Initialization Procedure
+This document describes a fictional box initialization scenario created by the QA team for checking translation quality.
 
-This document assumes the following goals and environment:
-- **Goal:** Initialize Box through `volume`, `nvmeof`, `tcp` modes using REST API
-- **Environment:**
-  - PBSSD firmware installation, execution (orc_run), and network configuration are completed.
-  - PBSSD has been assigned the IP address `10.1.3.8`.
-
-> **Example Usage Note:**
-> - REST API Request
->   - It is assumed that `admin:admin` is used for the administrator account.
->   - Assuming a self-signed certificate is used, the `curl` command includes the `-k` option as written.
-
-## PBSSD Status Check Before Box Initialization
-A status response for each command has been prepared before box initialization.
-
-**1. PBSSD Status Check via REST API**  
-Call the `GET /firmware/status` endpoint of the REST API to verify the integrated firmware status and module-specific statuses and versions of PBSSD. `pos-essential-orchestrator` requires box initialization, while `pos-essential-ioworker` is in a `Not Running` state due to incomplete initialization.
-
+## 1. Initial Inspection
+- Lab Equipment Name: `orion-mini`
+- Management IP: `172.30.11.20`
+- Status Query Command:
 ```bash
-$ curl -k -X GET \
--u 'admin:admin' \
--H 'Accept: application/json' \
-'https://10.1.3.8/api/v1/firmware/status'
+$ curl -k https://172.30.11.20/api/v1/lab/status
 ```
 
-```bash
-{
-  "FirmwareServices": [
-    {
-      "name": "Total",
-      "status": "Failed"
-    },
-    {
-      "name": "pos-essential-orchestrator",
-      "status": "Need Initialize",
-      "version": "2.6.0"
-    },
-    {
-      "name": "pos-essential-ioworker0",
-      "status": "Not Running"
-    },
-    {
-      "name": "pos-essential-ssd-anomaly-detector",
-      "status": "Running",
-      "version": "2.6.0"
-    },
-    {
-      "name": "pos-essential-management-ui",
-      "status": "Running",
-      "version": "2.6.0"
-    },
-    {
-      "name": "pos-essential-opentelemetry-collector (Third Party)",
-      "status": "Running",
-      "version": "0.77.0 (2.6.0)"
-    },
-    {
-      "name": "pos-essential-node-exporter (Third Party)",
-      "status": "Running",
-      "version": "2.6.0 (v1.6.0)"
-    },
-    {
-      "name": "pos-essential-prometheus (Third Party)",
-      "status": "Running",
-      "version": "2.6.0 (v2.47.0)"
-    },
-    {
-      "name": "pos-essential-ipmi-exporter (Third Party)",
-      "status": "Running",
-      "version": "1.6.1"
-    }
-  ],
-  "common": {
-    "message": "Firmware status retrieved successfully",
-    "relatedJobs": null
-  }
-}
-```
+## 2. Preparation Steps
+| Step | Description |
+|------|-------------|
+| 1    | Verify Test Image |
+| 2    | Backup Configuration |
+| 3    | Clean Log Directory |
 
-**2. Network Configuration Verification**  
-Call the `GET /settings/network` endpoint of the REST API to verify the PBSSD network settings.
-
-```bash
-$ curl -X GET \
--u 'admin:admin' \
--H 'Accept: application/json' \
-'https://10.1.3.8/api/v1/settings/network'
-```
-
-```bash
-{
-  "common": {
-    "message": "API Server successfully get the network settings.",
-    "relatedJobs": null
-  },
-  "networkPortSettings": [
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "gateway": "10.1.5.22",
-      "ip": "10.1.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 1500,
-      "portNum": 4,
-      "displayName": "Intel Corporation I350 Gigabit Network Connection",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-    {
-      "cidr": 16,
-      "dnsPrimaryAddress": "10.1.1.13",
-      "dnsSecondaryAddress": "12.26.3.228",
-      "ip": "10.100.3.8",
-      "isDhcpEnabled": false,
-      "mtuBytes": 9000,
-      "portNum": 2,
-      "displayName": "Mellanox Technologies MT2892 Family [ConnectX-6 Dx]",
-      "health": "UP",
-      "type": "tcp"
-    },
-    ...
-  ]
-}
-```
-
-## PBSSD Box Initialization
-Initialize the PBSSD box by calling the `POST /settings/init` endpoint of the REST API.
-> This API can only be invoked by accounts with administrative privileges.
+## 3. Initialization Command
 ```bash
 $ curl -k -X POST \
--u 'admin:admin' \
+-u 'init:init' \
 -H 'Content-Type: application/json' \
--H 'Accept: application/json' \
--d '{
-  "backing":"volume",
-  "protocol":"nvmeof",
-  "transport":"tcp"
-}' \
-'https://10.1.3.8/api/v1/settings/init'
+-d '{"mode": "training", "resetLogs": true}' \
+'https://172.30.11.20/api/v1/lab/init'
 ```
+
+## 4. Progress Tracking
+- `watch -n2 "curl -ks https://172.30.11.20/api/v1/lab/progress"`
+- `journalctl -u lab-reset -f`
+
+## 5. Completion Verification
+After initialization, verify the following items:
+1. Is a new session folder created inside `/var/log/lab-reset`?
+2. Is `systemctl status lab-core` in `active (running)` state?
+3. Confirm that the `phase` value in the REST response is `READY`.
+
+## 6. Post-Initialization Tasks
 ```bash
-{"message":"PBSSD initialized successfully","relatedJobs":null}
+$ curl -k -X POST \
+-u 'init:init' \
+-H 'Content-Type: application/json' \
+-d '{"command": "seed-data"}' \
+'https://172.30.11.20/api/v1/lab/tasks'
 ```
 
-## PBSSD Status Check After Box Initialization
-After successfully completing box initialization, responses for each command have been documented.
-
-**1. PBSSD Status Verification via REST API**  
-Invoke the `GET /firmware/status` endpoint of the REST API to verify the integrated firmware status, module-specific statuses, and versions of PBSSD. If box initialization was successful, `pos-essential-orchestrator` and `pos-essential-ioworker` should be in `Running` state, with `Total` status indicating `OK`.
-
-```bash
-$ curl -k -X GET \
--u 'admin:admin' \
--H 'Accept: application/json' \
-'https://10.1.3.8/api/v1/firmware/status'
-```
-
-```bash
-{
-  "FirmwareServices": [
-    {
-      "name": "Total",
-      "status": "OK"
-    },
-    {
-      "name": "pos-essential-orchestrator",
-      "status": "Running",
-      "version": "2.6.0"
-    },
-    {
-      "name": "pos-essential-ioworker0",
-      "status": "Running",
-      "version": "2.6.0"
-    },
-    {
-      "name": "pos-essential-ssd-anomaly-detector",
-      "status": "Running",
-      "version": "2.6.0"
-    },
-    {
-      "name": "pos-essential-management-ui",
-      "status": "Running",
-      "version": "2.6.0"
-    },
-    {
-      "name": "pos-essential-opentelemetry-collector (Third Party)",
-      "status": "Running",
-      "version": "0.77.0 (2.6.0)"
-    },
-    {
-      "name": "pos-essential-node-exporter (Third Party)",
-      "status": "Running",
-      "version": "2.6.0 (v1.6.0)"
-    },
-    {
-      "name": "pos-essential-prometheus (Third Party)",
-      "status": "Running",
-      "version": "2.6.0 (v2.47.0)"
-    },
-    {
-      "name": "pos-essential-ipmi-exporter (Third Party)",
-      "status": "Running",
-      "version": "1.6.1"
-    }
-  ],
-  "common": {
-    "message": "Firmware status retrieved successfully",
-    "relatedJobs": null
-  }
-}
-```
+## 7. Report Writing
+- The practitioner records the results in the `docs/reports/box-init-template.md` file.
+- If issues arise, attach logs to an email to `lab-support@example.com` for inquiry.
 
 ---
 
