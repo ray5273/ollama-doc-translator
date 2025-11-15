@@ -483,17 +483,19 @@ def split_markdown_by_sections(content: str, max_tokens: int = None) -> list:
     for i, line in enumerate(lines):
         line_stripped = line.strip()
         line_tokens = count_tokens(line + '\n')
+        just_closed_code_block = False  # Track whether this line closes a code block
         
         # Check for code block fences
         if line_stripped.startswith('```') or line_stripped.startswith('~~~'):
-            if not in_code_block:
-                # Starting a code block
-                in_code_block = True
-                code_block_fence = line_stripped[:3]  # Store fence type
-            elif line_stripped.startswith(code_block_fence):
+            if in_code_block and code_block_fence and line_stripped == code_block_fence:
                 # Ending a code block
                 in_code_block = False
                 code_block_fence = None
+                just_closed_code_block = True
+            elif not in_code_block:
+                # Starting a code block
+                in_code_block = True
+                code_block_fence = line_stripped[:3]  # Store fence type
         
         # Check if this line is a heading (but not if we're inside a code block)
         heading_match = re.match(r'^(#+)\s+(.+)$', line_stripped)
@@ -545,9 +547,11 @@ def split_markdown_by_sections(content: str, max_tokens: int = None) -> list:
             # Regular content line
             # If adding this line would exceed token limit, finish current section
             # BUT don't break if we're inside a code block
+            # ALSO don't break on the exact line that just closed a code block
             if (current_section_lines and 
                 current_tokens + line_tokens > max_tokens and 
-                not in_code_block):
+                not in_code_block and 
+                not just_closed_code_block):
                 
                 # Finish current section
                 original_section = '\n'.join(lines[section_start_index:i])
@@ -608,13 +612,59 @@ def prepare_section_for_translation(section_data: dict) -> str:
     else:
         return content
 
+def merge_chunks_with_unclosed_code_blocks(chunks: list) -> list:
+    """Merge consecutive chunks when a code block fence is not yet closed"""
+    if not chunks:
+        return []
+    
+    merged_chunks = []
+    pending = []
+    in_code_block = False
+    code_block_fence = None
+    
+    def update_code_block_state(text_lines, in_block, fence):
+        """Update code block tracking state for a list of lines"""
+        for line in text_lines:
+            stripped = line.strip()
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                fence_marker = stripped[:3]
+                if not in_block:
+                    in_block = True
+                    fence = fence_marker
+                elif fence and stripped == fence:
+                    in_block = False
+                    fence = None
+        return in_block, fence
+    
+    for chunk in chunks:
+        if not chunk.strip():
+            continue
+        
+        pending.append(chunk)
+        lines = chunk.split('\n')
+        in_code_block, code_block_fence = update_code_block_state(lines, in_code_block, code_block_fence)
+        
+        if not in_code_block:
+            combined = '\n\n'.join(pending).strip()
+            if combined:
+                merged_chunks.append(combined)
+            pending = []
+            code_block_fence = None  # Reset fence marker after closing
+    
+    if pending:
+        combined = '\n\n'.join(pending).strip()
+        if combined:
+            merged_chunks.append(combined)
+    
+    return merged_chunks
+
 def split_markdown_by_paragraphs(content: str, max_tokens: int = None) -> list:
     """Fallback: Split markdown content by paragraphs while preserving headers with content"""
     # First try section-aware splitting
     sections = split_markdown_by_sections(content, max_tokens)
     if len(sections) > 1:
         # Convert section data back to simple strings for compatibility
-        return [section['content'] for section in sections]
+        return merge_chunks_with_unclosed_code_blocks([section['content'] for section in sections])
     
     # Fallback to paragraph-based splitting for simple documents
     raw_paragraphs = re.split(r'\n\s*\n', content.strip())
@@ -639,7 +689,7 @@ def split_markdown_by_paragraphs(content: str, max_tokens: int = None) -> list:
         merged_paragraphs.append(current)
         i += 1
     
-    return merged_paragraphs
+    return merge_chunks_with_unclosed_code_blocks(merged_paragraphs)
 
 def calculate_safe_input_tokens(context_length: int) -> int:
     """Calculate safe input token count - adaptive based on context length"""
@@ -699,7 +749,7 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
                 # Starting a code block
                 in_code_block = True
                 code_block_fence = line_stripped[:3]  # Store fence type
-            elif line_stripped.startswith(code_block_fence):
+            elif code_block_fence and line_stripped == code_block_fence:
                 # Ending a code block
                 in_code_block = False
                 code_block_fence = None
@@ -726,33 +776,100 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
             # For headers, try to include some content after it (but only if not in code block or table)
             header_chunk = [line]
             header_tokens = line_tokens
-            
+
             # Look ahead to include content after header
+            # Track code block state during look-ahead
+            lookahead_in_code_block = in_code_block
+            lookahead_code_block_fence = code_block_fence
+
             j = i + 1
-            while j < len(lines) and header_tokens < max_tokens * 0.8:  # Use 80% to be safe
+            while j < len(lines):
                 next_line = lines[j]
                 next_tokens = count_tokens(next_line + '\n')
                 next_line_stripped = next_line.strip()
-                
-                
-                # Stop if we hit another header or exceed token limit (but not if in code block or table)
-                if (next_line_stripped.startswith('#') and next_line_stripped != '' and not in_code_block and not in_table):
+
+                # Track code block state in look-ahead
+                if next_line_stripped.startswith('```') or next_line_stripped.startswith('~~~'):
+                    if not lookahead_in_code_block:
+                        lookahead_in_code_block = True
+                        lookahead_code_block_fence = next_line_stripped[:3]
+                    elif (lookahead_code_block_fence and 
+                          next_line_stripped == lookahead_code_block_fence):
+                        lookahead_in_code_block = False
+                        lookahead_code_block_fence = None
+
+                # Stop if we hit another header (but not if in code block or table)
+                if (next_line_stripped.startswith('#') and next_line_stripped != '' and not lookahead_in_code_block and not in_table):
                     break
-                if header_tokens + next_tokens > max_tokens * 0.8 and not in_code_block and not in_table:
-                    break
-                
+
+                # Check token limit - but MUST continue if in code block or table
+                if header_tokens + next_tokens > max_tokens * 0.8:
+                    if not lookahead_in_code_block and not in_table:
+                        # Safe to break - not in code block or table
+                        break
+                    # else: continue adding even though over limit, because we're in code block/table
+
                 header_chunk.append(next_line)
                 header_tokens += next_tokens
                 j += 1
-            
+
+            # CRITICAL: If we ended while still in a code block, continue until it closes!
+            while j < len(lines) and lookahead_in_code_block:
+                next_line = lines[j]
+                next_tokens = count_tokens(next_line + '\n')
+                next_line_stripped = next_line.strip()
+
+                header_chunk.append(next_line)
+                header_tokens += next_tokens
+
+                # Check if this line closes the code block
+                if next_line_stripped.startswith('```') or next_line_stripped.startswith('~~~'):
+                    if (lookahead_code_block_fence and 
+                        next_line_stripped == lookahead_code_block_fence):
+                        lookahead_in_code_block = False
+                        lookahead_code_block_fence = None
+
+                j += 1
+
             # Finalize current chunk if it exists
+            # IMPORTANT: Only finalize if we're not in a code block!
             if current_chunk:
-                chunks.append('\n'.join(current_chunk))
+                # Check if current chunk has unclosed code block
+                current_chunk_text = '\n'.join(current_chunk)
+                fence_count = current_chunk_text.count('```') + current_chunk_text.count('~~~')
+
+                if fence_count % 2 != 0:
+                    # Unclosed code block - don't split here!
+                    # Continue adding to current chunk instead of starting new one
+                    current_chunk.extend(header_chunk)
+                    current_tokens += header_tokens
+                    i = j
+                    continue
+                else:
+                    # Safe to finalize - no unclosed code blocks
+                    chunks.append(current_chunk_text)
+                    current_chunk = []
+                    current_tokens = 0
+
+            # Check if header chunk has unmatched fences
+            header_chunk_text = '\n'.join(header_chunk)
+            header_fence_count = header_chunk_text.count('```') + header_chunk_text.count('~~~')
+
+            if header_fence_count % 2 != 0:
+                # Header chunk has unclosed code block!
+                # Don't finalize it - make it the current_chunk so it continues in next iteration
+                current_chunk = header_chunk
+                current_tokens = header_tokens
+            else:
+                # Safe to finalize header chunk
+                chunks.append(header_chunk_text)
                 current_chunk = []
                 current_tokens = 0
-            
-            # Add header chunk
-            chunks.append('\n'.join(header_chunk))
+
+            # CRITICAL: Update main loop's code block state based on look-ahead
+            in_code_block = lookahead_in_code_block
+            code_block_fence = lookahead_code_block_fence
+
             i = j  # Skip the lines we've already included
             continue
         
@@ -763,9 +880,22 @@ def split_lines_preserving_structure(lines: list, max_tokens: int) -> list:
         else:
             # Finalize current chunk (only if not in code block or table)
             if current_chunk:
-                chunks.append('\n'.join(current_chunk))
-            current_chunk = [line]
-            current_tokens = line_tokens
+                # Safety check: ensure we don't split with unclosed code blocks
+                current_chunk_text = '\n'.join(current_chunk)
+                fence_count = current_chunk_text.count('```') + current_chunk_text.count('~~~')
+
+                if fence_count % 2 != 0:
+                    # Unclosed code block - must continue adding even if over token limit
+                    current_chunk.append(line)
+                    current_tokens += line_tokens
+                else:
+                    # Safe to finalize
+                    chunks.append(current_chunk_text)
+                    current_chunk = [line]
+                    current_tokens = line_tokens
+            else:
+                current_chunk = [line]
+                current_tokens = line_tokens
         
         i += 1
     
