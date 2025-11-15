@@ -1,15 +1,15 @@
 # PBSSD Firmware Installation & Execution Guide
 This document provides guidance on the installation (PBSSD Firmware Installation) and execution (PBSSD Firmware Execution) procedures of PBSSD firmware.
 
-This document assumes the following goals and environment:
-- **Goal:** Control PBSSD firmware installation and execution
-- **Environment:** Debian package for PBSSD firmware is prepared
+This document assumes the following goals and environments:
+- Goal: Control the installation and execution of PBSSD firmware
+- Environment: Debian package for PBSSD firmware is prepared
 
 > **Example Usage Note:**
 > - Some commands may require `sudo` privileges depending on the environment.
 > - REST API Requests
->   - Assuming use of an `admin:admin` account for administrator access.
->   - Assuming use of a self-signed certificate, commands are written with the `-k` option for `curl`.
+>   - It is assumed that the administrator account uses `admin:admin`.
+>   - Assuming the use of a self-signed certificate, commands are written with the `-k` option included in `curl` commands.
 
 ## PBSSD Firmware Installation
 PBSSD firmware installation procedure.
@@ -55,26 +55,12 @@ otel/opentelemetry-collector       2.6.0                afb19f2adefc   2 years a
 ```
 
 ## PBSSD Status Check Before Starting PBSSD Firmware
-Before starting the PBSSD firmware, the status responses for each command have been documented. Since the PBSSD firmware services are currently not running, the PBSSD service status is `inactive`.
+PBSSD firmware status responses have been documented for each command before initiating the PBSSD firmware.
 
 **1. Service Status Verification**  
-The installed PBSSD firmware consists of multiple services, and you can verify the service status using the following commands. Currently, since the PBSSD firmware services are not running, the PBSSD service status is `inactive`.
+The installed PBSSD firmware consists of multiple services, and service status can be verified using the following commands. Since the PBSSD firmware services are currently not running, the PBSSD service status is `inactive`.
 ```bash
-Node                  Generic               SN                   Model                                    Namespace  Usage                      Format           FW Rev  
---------------------- --------------------- -------------------- ---------------------------------------- ---------- -------------------------- ---------------- --------
-/dev/nvme0n1          /dev/ng0n1            S871NG0Y200017       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme10n1         /dev/ng10n1           Y3P200LXNSJ4         KBG40ZPZ128G TOSHIBA MEMORY              0x1        128.04  GB / 128.04  GB    512   B +  0 B   AEGA0103
-/dev/nvme11n1         /dev/ng11n1           S871NG0Y200018       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme12n1         /dev/ng12n1           S871NG0Y200015       SAMSUNG MZWMO30THCLF-00AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRA4B5Q
-/dev/nvme1n1          /dev/ng1n1            S871NG0Y200022       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme2n1          /dev/ng2n1            S871NG0Y200019       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme3n1          /dev/ng3n1            S871NG0Y200014       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme4n1          /dev/ng4n1            S871NG0Y200016       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme5n1          /dev/ng5n1            S871NG0Y200023       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00  GB /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme6n1          /dev/ng6n1            S871NG0Y200069       SAMSUNG MZWMO30THCLF-01AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRATB57
-/dev/nvme7n1          /dev/ng7n1            S871NG0Y200070       SAMSUNG MZWMO30THCLF-00AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRA4B5Q
-/dev/nvme8n1          /dev/ng8n1            S871NG0Y200074       SAMSUNG MZWMO30THCLF-00AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRA4B5Q
-/dev/nvme9n1          /dev/ng9n1            S871NG0Y200071       SAMSUNG MZWMO30THCLF-00AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRA4B5Q
+$ systemctl status orc_init
 ```
 ```bash
 ○ orc_init.service - Daemon for running a script for pre-settings required before executing Pos Essential Orchestrator
@@ -93,7 +79,7 @@ $ systemctl status orc_run
 ```
 
 **2. Container Status Verification**  
-The installed PBSSD firmware operates in container form, and you can check the container runtime status using the following command. Since the PBSSD firmware services are currently not running, no relevant containers are active.
+The installed PBSSD firmware operates in container form, and container status can be checked using the following command. Since the PBSSD firmware services are currently not running, related containers are not active.
 ```bash
 $ docker ps
 ```
@@ -102,8 +88,8 @@ CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
 ```
 
 **3. Storage Status Verification**  
-Storage status can be verified using the following command. Use `nvme list` to identify NVMe devices registered with the operating system.  
-*Note:* After starting the PBSSD firmware, NVMe devices managed by the firmware will no longer be exposed via this command.
+Storage status can be verified using the following command. The `nvme list` command can be used to identify NVMe devices registered with the operating system.  
+*Note:* Once PBSSD firmware is executed, NVMe devices are managed by the firmware, thus they may not be exposed via this command anymore.
 ```bash
 $ nvme list
 ```
@@ -123,6 +109,7 @@ Node                  Generic               SN                   Model          
 /dev/nvme7n1          /dev/ng7n1            S871NG0Y200070       SAMSUNG MZWMO30THCLF-00AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRA4B5Q
 /dev/nvme8n1          /dev/ng8n1            S871NG0Y200074       SAMSUNG MZWMO30THCLF-00AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRA4B5Q
 /dev/nvme9n1          /dev/ng9n1            S871NG0Y200071       SAMSUNG MZWMO30THCLF-00AW7               0x1          0.00   B /  30.72  TB    512   B +  0 B   OPRA4B5Q
+```
 
 ## Starting PBSSD Firmware
 `orc_run` service starts the PBSSD firmware.
@@ -131,10 +118,10 @@ $ systemctl start orc_run
 ```
 
 ## PBSSD Status Check After Starting PBSSD Firmware
-PBSSD firmware status responses for each command are listed below after starting the PBSSD firmware.
+PBSSD firmware status after initialization is documented below for each command response.
 
 **1. Service Status Verification**  
-The status of the `orc_init` and `orc_run` services can be checked using the following commands. Both services should be in the `Active: active` state, with `orc_run` specifically showing `running`.
+The status of the `orc_init` and `orc_run` services should be verified using the following commands. Both should be in `Active: active` state, with `orc_run` specifically showing `running`.
 ```bash
 $ systemctl status orc_init
 ```
@@ -169,7 +156,7 @@ f1137a330130   pos-essential-management-ui:latest        "python3 rest/app.py"  
 ```
 
 **3. Storage Status Verification**  
-Upon executing the PBSSD firmware via `orc_run` service, PBSSD firmware controls NVMe devices directly from the operating system, making them invisible through the `nvme list` command. Only the SSD with the operating system installed will be displayed. Storage status can be checked using the following command:
+Upon executing the PBSSD firmware via `orc_run` service, PBSSD firmware directly controls NVMe devices through the operating system, making them invisible via `nvme list` command. Only the SSD where the operating system resides will be displayed. Storage status can be checked with the following command:
 ```bash
 $ nvme list
 ```
@@ -196,7 +183,7 @@ $ curl -k -X GET \
   "version": "2.6.0"
 }
 ```
-Retrieve the integrated status and module statuses along with version information for each configuration service by calling the `GET /firmware/status` endpoint of the REST API. The `Total` field under `FirmwareServices` indicates the overall system status, while other `name` fields represent individual modules composing the PBSSD firmware. In the example below, box initialization is incomplete, leading to `pos-essential-ioworker` module responsible for IO being `Not Running`, resulting in a `Failed` `Total` status.
+To check the integrated status and module statuses along with version information of each configuration service via the `GET /firmware/status` endpoint of the REST API, execute the following command:
 ```bash
 $ curl -k -X GET \
 -u 'admin:admin' \
@@ -305,7 +292,7 @@ $ curl -k -X GET \
 ```
 
 ## Stopping PBSSD Firmware
-`orc_run` service Stop it. PBSSD Firmware's Execution It will be paused..
+`orc_run` service stopping halts the execution of PBSSD firmware.
 ```bash
 $ systemctl stop orc_run
 ```

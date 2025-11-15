@@ -13,9 +13,9 @@ This document covers the following topics:
 3. [Exposing Logical Volume via NVMe-oF](#expose-logical-volume-to-external-hosts-via-nvme-of)  
 
 This document assumes the following goals and environments:
-- **Goal**: Manage volumes of PBSSD through REST APIs.
-- **Environment**:
-  - PBSSD is running normally with box initialization completed and `Total` status set to `OK`.
+- **Goal:** Manage volumes of PBSSD through REST APIs.
+- **Environment:**
+  - PBSSD is running normally with box initialization completed, with `Total` status set to `OK`.
   - PBSSD has been assigned the IP address `10.1.3.8`.
   - The device information referenced in examples is as follows:
     ```bash
@@ -44,14 +44,14 @@ This document assumes the following goals and environments:
 > **Example usage reference:**
 > - REST API Request
 >   - Administrator Through the account `admin:admin` Using it Assume.
->   - self-signed Certificate Using it Assume, `curl` According to instructions `-k` Options Including command It was written..
+>   - self-signed Certificate Using it Assume, `curl` According to instructions `-k` Options Including command I have written it..
 
 ## Logical Volume Store
 LVS(Logical Volume Store) Physical NVMe Device Or LVol Above Hierarchy Composed, The user According to need Following Size and performance Other Volume Dynamically Creation·Delete Water so that it may be possible Supporting Abstraction It is a hierarchy..
 
 **Creation**   
-REST API's `POST /volumes/lvstore` endpoints Call upon LVS I create.
->  API Manager Authority Exists By account only To call Water It exists..
+REST API's `POST /volumes/lvstore` Endpoints Call upon LVS I create.
+>  API Manager Authority Exists By account only to call Water It exists..
 ```bash
 $ curl -k -X POST \
 -u <USERNAME>:<PASSWORD> \
@@ -91,7 +91,7 @@ Below is Query parameters to The Republic of Korea This is an explanation..
 | `lvs_name`                              | `string`         | Selection     | LVStore Name |
 
 **Deletion**  
-REST API's `DELETE /volumes/lvstore` Endpoints Call upon LVS Delete it..
+REST API's `DELETE /volumes/lvstore` endpoints Call upon LVS Delete it..
 ```bash
 curl -k -X DELETE \
 -H 'Content-Type: application/json' \
@@ -106,11 +106,11 @@ curl -k -X DELETE \
 Below is Request The main text In the field The Republic of Korea This is an explanation..
 | Field Name          | Type              | Essential Whether |              |
 |---------------|------------------|---------|--------------|
-| `alias`       | `string`         | Essential     | Delete LVS Path |
+| `alias`       | `string`         | Essential     | Delete LVS Pathway |
 | `uuid`        | `string`         | Selection     | uuid         |
 
 
-**Examples of Command Usage**  
+**Example usage of commands**  
 `bdevName` `nvme9472n1`인 On the device LVS Create For safety Below command I use it..
 ```bash
 $ curl -k -X POST \
@@ -147,7 +147,7 @@ curl -k -X GET \
 }
 ```
 
-LVS names `lvs9472_1st` delete the LVS using the following commands:
+LVS deletes the `lvs9472_1st` LVS using the following commands:
 
 ```bash
 curl -k -X DELETE \
@@ -184,13 +184,13 @@ $ curl -k -X POST \
 ```
 
 Here is a description of the fields in the request body:
-| Field Name               | Type        | Required |                          |
-|--------------------|------------|---------|--------------------------|
-| `alias`            | `string`   | Yes     | LVS name where LVol will be created |
-| `lvol_name`        | `string`   | Yes     | Name of the LVol to be created |
-| `size_in_mib`      | `uint64`   | Yes     | Size                      |
-| `thin_provision`   | `boolean`  | No      | Thin provision availability |
-| `uuid`             | `string`   | No      | UUID                      |
+| Field Name               | Type        | Required | Description                                      |
+|--------------------|------------|---------|--------------------------------------------------|
+| `alias`            | `string`   | Yes     | LVS name where the LVol will be created          |
+| `lvol_name`        | `string`   | Yes     | Name of the LVol to be created                   |
+| `size_in_mib`      | `uint64`   | Yes     | Size                                             |
+| `thin_provision`   | `boolean`  | No      | Indicates whether thin provisioning is used       |
+| `uuid`             | `string`   | No      | UUID                                             |
 
 **2. Retrieval**  
 Retrieve the created LVol (Logical Volume) by calling the `GET /volumes/lvol` endpoint of the REST API.
@@ -202,9 +202,9 @@ https://<IP_ADDRESS>/api/v1/volumes/lvol
 ```
 
 Here is a description of the query parameters:
-| Field Name                                 | Type              | Required |             |
-|--------------------------------------|------------------|---------|-------------|
-| `alias`                              | `string`         | No      | LVol path   |
+| Field Name                                 | Type              | Required | Description                                |
+|--------------------------------------|------------------|---------|-------------------------------------------|
+| `alias`                              | `string`         | No      | Path to the LVol                           |
 
 **3. Deletion**  
 Delete the LVS by calling the `DELETE /volumes/lvol` endpoint of the REST API.
@@ -219,12 +219,12 @@ curl -k -X DELETE \
 ```
 
 Here is a description of the fields in the request body:
-| Field Name          | Type              | Required |              |
-|---------------|------------------|---------|--------------|
-| `alias`       | `string`         | Yes     | Path of LVol to delete |
+| Field Name          | Type              | Required | Description                                |
+|---------------|------------------|---------|-------------------------------------------|
+| `alias`       | `string`         | Yes     | Path to the LVol to be deleted             |
 
 **4. Command Examples**  
-Use the following command to create an LVol named `lvol9472_1st` under an LVS named `lvs9472_1st`:
+Use the following command to create an LVol named `lvol9472_1st` under an LVS named `lvs9472_1st`.
 ```bash
 $ curl -k -X POST \
 -u 'admin:admin' \
@@ -287,12 +287,12 @@ curl -k -X DELETE \
 ```
 
 ## Expose Logical Volume to External Hosts via NVMe-oF
-To access the volume of PBSSD through an initiator using NVMe-oF (NVMe over Fabrics), you must first `attach` the volume.
-Once `attached`, the volume is recognized as a block device by the initiator through a normal NVMe-oF connection, enabling file I/O operations. [The process of connecting the initiator to PBSSD via NVMe-oF is covered in the NVMe-oF page](0300-nvmeof-connection.md).
+To access the volume in PBSSD via NVMe-oF (NVMe over Fabrics) from an initiator, you must first `attach` the volume.
+Once `attached`, the volume is recognized as a block device by the initiator through a normal NVMe-oF connection, enabling file I/O operations. [The process of connecting an initiator to PBSSD via NVMe-oF is covered in the NVMe-oF pages](0300-nvmeof-connection.md).
 
 **1. Command**  
 Call the `POST /volumes/lvol/attach` endpoint of the REST API to `attach` the LVol.
-> This API can only be invoked by an account with administrative privileges.
+> This API can only be invoked by accounts with administrative privileges.
 ```bash
 curl -k -X POST \
 -u <USERNAME>:<PASSWORD> \
@@ -301,8 +301,8 @@ curl -k -X POST \
 'https://<IP_ADDRESS>/api/v1/volumes/lvol/attach'
 ```
 
-**2. Command Example Usage**  
-Use the following command to `attach` the `lvol9472_1st` named LVol within the `lvs9472_1st` LVS.
+**2. Command Example**  
+Use the following command to `attach` the LVol named `lvol9472_1st` within the `lvs9472_1st` LVS.
 ```bash
 curl -k -X POST \
 -u 'admin:admin' \

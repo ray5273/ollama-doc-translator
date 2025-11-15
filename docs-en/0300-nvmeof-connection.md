@@ -1,18 +1,18 @@
 # NVMe-oF Connection Guide
-This document guides you through connecting PBSSD and an initiator using the NVMe-oF (NVMe over Fabrics) protocol. Once PBSSD firmware installation and box initialization are complete and a volume is `attached`, PBSSD is ready to process I/O commands.
+This document guides you through connecting PBSSD and an initiator using the NVMe-oF (NVMe over Fabrics) protocol. Once PBSSD firmware installation and box initialization are complete, and volumes are `attached`, PBSSD is ready to process I/O commands.
 
 This document assumes the following goals and environments:
 - **Goal:** Connect to the NVMe-oF subsystem of the PBSSD target using a 100Gbps network interface from the initiator
 - **Environment:**
   - Box initialization is complete, and the intended volume is properly `attached`.
   - PBSSD is connected to the initiator via a 100Gbps network interface using IP address `10.100.3.8`.
-  - Box initialization was completed via TCP-based connection, and NVMe-oF utilizes the TCP transport layer.
+  - Box initialization was completed through TCP-based connection, and NVMe-oF utilizes the TCP transport layer.
 
 > **Example Usage Note:**
 > - Some commands may require `sudo` privileges depending on the environment.
 
 ## Discovering NVMe-oF Devices
-Before the Initiator connects to NVMe devices provided by PBSSD, it must use the `nvme discover` command to check the list of NVMe-oF subsystems (NVMe Qualified Name, NQN) discoverable in the NVMe-oF network.
+Before connecting to NVMe devices provided by PBSSD, the `nvme discover` command must be used to verify the list of NVMe-oF subsystems (NVMe Qualified Name, NQN) discoverable in the NVMe-oF network.
 
 **1. Command**  
 The `nvme discover` command can be used in the following format to retrieve a list of NVMe-oF subsystems corresponding to the specified transport protocol, address (`traddr`), and port (`trsvcid`):
@@ -21,14 +21,14 @@ $ nvme discover -t <TRANSPORT_PROTOCOL> -a <TRANSPORT_ADDRESS> -s <TRANSPORT_SER
 ```
 Here is a description of the command options:
 
-| Option                  | Flag | Description                                                                                     |
-|-------------------------|------|-------------------------------------------------------------------------------------------------|
-| `transport protocol`   | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`) |
-| `transport address`    | `-a` | Network transmission protocol address used in the NVMe-oF environment                             |
-| `transport service ID` | `-s` | Network service identifier used in the NVMe-oF environment (PBSSD I/O default port: 1152, 1153)     |
+| Option                | Flag | Description                                                                                     |
+|-----------------------|------|-------------------------------------------------------------------------------------------------|
+| `transport protocol` | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`) |
+| `transport address`   | `-a` | Network transmission protocol used in the NVMe-oF environment                                      |
+| `transport service ID`| `-s` | Network service identifier used in the NVMe-oF environment (PBSSD I/O default port: 1152, 1153)     |
 
-**2. Command Usage Example**  
-Use the `nvme discover` command to query the list of NVMe-oF subsystems (NVMe Qualified Name, NQN) provided by the target PBSSD.
+**2. Command Example Usage**  
+Use the `nvme discover` command to retrieve a list of NVMe-oF subsystems (NVMe Qualified Name, NQN) provided by the target PBSSD.
 ```bash
 $ nvme discover -t tcp -a 10.100.3.8 -s 1152
 ```
@@ -125,7 +125,7 @@ sectype: none
 ```
 
 ## Connecting NVMe-oF Devices
-Use the `nvme connect` command to connect to an NVMe-oF subsystem. With this command, the connected subsystem is registered as an NVMe block device in the initiator's operating system, allowing block I/O operations such as partitioning, formatting, and mounting through device files (e.g., `/dev/nvme0n1`) like local SSDs.
+Use the `nvme connect` command to connect to an NVMe-oF subsystem. With this command, the connected subsystem is registered as an NVMe block device by the initiator's operating system, allowing block I/O operations such as partition creation, formatting, and mounting via device files (e.g., `/dev/nvme0n1`), similar to local SSDs.
 
 **1. Command**  
 The `nvme connect` command can be used in the following format to connect to an NVMe-oF subsystem specified by the transmission protocol, address (`traddr`), port (`trsvcid`), and NQN (NVMe Qualified Name):
@@ -148,15 +148,15 @@ nvme-subsys2 - NQN=nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19
 ```
 Here is a description of the command options:
 
-| Option  | Flag | Description                                                                                                                                                                                                                                |
-|---------|------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `transport protocol` | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`)                                                                                                                                         |
-| `transport address` | `-a` | Network transmission protocol address used in the NVMe-oF environment                                                                                                                                                                         |
-| `transport service ID` | `-s` | Network service identifier used in the NVMe-oF environment (PBSSD I/O default port: 1152, 1153)                                                                                                                                               |
-| `nqn name`             | `-n` | Unique name identifying the NVMe-oF target (target) (`nvme connect` command uses `subtype` as `subnqn` for `nvme subsystem`)                                                                                                                        |
+| Option  | Flag | Description                                                                                                                                                                                                 |
+|---------|------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `transport protocol` | `-t` | Network transmission protocol used in the NVMe-oF (NVMe over Fabrics) environment (e.g., `tcp`, `rdma`)                                                                                                      |
+| `transport address` | `-a` | Network transmission protocol address used in the NVMe-oF environment                                                                                                                                      |
+| `transport service ID` | `-s` | Network service identifier used in the NVMe-oF environment (PBSSD I/O default port: 1152, 1153)                                                                                                           |
+| `nqn name`             | `-n` | Unique name identifying the NVMe-oF target (target) in NVMe-oF (NVMe over Fabrics), using `subtype` as `nvme subsystem` `subnqn` for `nvme connect` command                                                      |
 
 **2. Command Usage Examples**  
-After using the `nvme discover` command to identify NVMe-oF subsystems, check the NQN of the subsystem with `traddr` set to `10.100.3.8`, then specify this NQN as the `<NQN_NAME>` argument in the `nvme connect` command to connect to the target PBSSD subsystem:
+After using the `nvme discover` command to identify the NVMe-oF subsystems with `traddr` as `10.100.3.8`, verify the NQN of the target PBSSD subsystem and specify it as the `<NQN_NAME>` argument in the `nvme connect` command to connect to it:
 ```bash
 $ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:bcf5b9ad-7697-4615-b093-7b675f2e9c0f -a 10.100.3.8 -s 1152
 $ nvme connect -t tcp -n nqn.2023-01.com.samsung.semiconductor:uuid:c0e7d24f-7838-43c8-bd15-c2dd506e99aa -a 10.100.3.8 -s 1152
@@ -208,12 +208,11 @@ $ nvme disconnect -n <NQN_NAME>
 ```
 
 **2. Example Usage of `nvme disconnect` Command**  
-First, identify the connected subsystems by listing them:
+First, identify the connected subsystem by listing them and then confirm the NQN value of the subsystem you wish to disconnect:
 
 ```bash
 $ nvme list-subsys
 ```
-
 ```bash
 ...
 nvme-subsys2 - NQN=nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19-bc9d-20d71df29c57
@@ -222,23 +221,19 @@ nvme-subsys2 - NQN=nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19
  +- nvme2 tcp traddr=10.10.100.11,trsvcid=1152,src_addr=10.10.10.51 live
 ...
 ```
-
 Use the queried NQN value as the `<NQN_NAME>` parameter in the `nvme disconnect` command:
 
 ```bash
 $ nvme disconnect -n nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19-bc9d-20d71df29c57
 ```
-
 ```bash
 NQN:nqn.2023-01.com.samsung.semiconductor:uuid:718c4d01-a419-4b19-bc9d-20d71df29c57 disconnected 1 controller(s)
 ```
-
 After disconnecting the NVMe-oF device, it will no longer appear in the output of the `nvme list` command.
 
 ```bash
 $ nvme list
 ```
-
 ```bash
 Node                  Generic               SN                   Model                                    Namespace  Usage                      Format           FW Rev  
 --------------------- --------------------- -------------------- ---------------------------------------- ---------- -------------------------- ---------------- --------
@@ -260,13 +255,11 @@ Execute the `nvme disconnect-all` command to disconnect all connections:
 ```bash
 $ nvme disconnect-all 
 ```
-
 After disconnecting, the `nvme list` command output will no longer show NVMe-oF devices. Note that the `nvme disconnect-all` command only affects remote NVMe-oF devices and does not impact local NVMe SSDs.
 
 ```bash
 $ nvme list
 ```
-
 ```bash
 Node                  Generic               SN                   Model                                    Namespace  Usage                      Format           FW Rev  
 --------------------- --------------------- -------------------- ---------------------------------------- ---------- -------------------------- ---------------- --------
