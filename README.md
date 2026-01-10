@@ -1,6 +1,6 @@
 # Ollama Korean to English Translator
 
-A GitHub Action that automatically translates Korean markdown documents to English using local Ollama API with Exaone3.5 model.
+A GitHub Action that automatically translates Korean markdown documents to English using local Ollama API with a fine-tuned EXAONE 3.5 model.
 
 ![GitHub release](https://img.shields.io/github/v/release/your-username/ollama-doc-translator)
 ![GitHub marketplace](https://img.shields.io/badge/marketplace-ollama--translator-blue)
@@ -9,7 +9,8 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 ## 🚀 Features
 
 - **Automatic Translation**: Translate Korean markdown files to English automatically
-- **AI-Powered**: Uses Exaone3.5:7.8b model for high-quality translations  
+- **AI-Powered**: Uses fine-tuned EXAONE 3.5 model optimized for Korean→English markdown translation
+- **Markdown Preservation**: Preserves all markdown formatting (code blocks, tables, links, etc.)  
 - **Customizable**: Configure source/target directories, models, and translation parameters
 - **Auto PR Creation**: Automatically creates pull requests with translations
 - **Smart Skipping**: Skip files that are already translated and up-to-date
@@ -17,7 +18,7 @@ A GitHub Action that automatically translates Korean markdown documents to Engli
 
 ## 📋 Prerequisites
 
-- A running Ollama server with access to the Exaone3.5:7.8b model
+- A running Ollama server with the fine-tuned translation model
 - GitHub repository with Korean markdown files
 
 ## 🛠️ Usage
@@ -43,7 +44,7 @@ jobs:
       with:
         source-dir: 'docs'
         target-dir: 'docs-en'
-        model: 'exaone3.5:7.8b'
+        model: 'ray5273/exaone-3.5-7.8b-KorEng-Translation:q8_0'
         create-pr: true
         github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -55,7 +56,7 @@ jobs:
   uses: your-username/ollama-doc-translator@v1
   with:
     ollama-url: 'http://localhost:11434'
-    model: 'exaone3.5:7.8b'
+    model: 'ray5273/exaone-3.5-7.8b-KorEng-Translation:q8_0'
     source-dir: 'korean-docs'
     target-dir: 'english-docs'
     file-pattern: '**/*.md'
@@ -74,7 +75,7 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `ollama-url` | Ollama API URL | No | `http://localhost:11434` |
-| `model` | Ollama model for translation | No | `exaone3.5:7.8b` |
+| `model` | Ollama model for translation | No | `ray5273/exaone-3.5-7.8b-KorEng-Translation:q8_0` |
 | `source-dir` | Source directory with Korean files | No | `docs` |
 | `target-dir` | Target directory for English files | No | `docs-en` |
 | `file-pattern` | File pattern to match (glob) | No | `**/*.md` |
@@ -108,7 +109,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama serve
 
 # Pull the translation model
-ollama pull exaone3.5:7.8b
+ollama pull ray5273/exaone-3.5-7.8b-KorEng-Translation:q8_0
 ```
 
 ### 2. Repository Setup

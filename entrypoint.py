@@ -15,7 +15,7 @@ import subprocess
 
 # Action inputs from environment variables
 OLLAMA_URL = os.getenv('INPUT_OLLAMA_URL', 'http://localhost:11434')
-MODEL = os.getenv('INPUT_MODEL', 'exaone3.5:7.8b')
+MODEL = os.getenv('INPUT_MODEL', 'ray5273/exaone-3.5-7.8b-KorEng-Translation:q8_0')
 SOURCE_DIR = os.getenv('INPUT_SOURCE_DIR', 'docs')
 TARGET_DIR = os.getenv('INPUT_TARGET_DIR', 'docs-en')
 FILE_PATTERN = os.getenv('INPUT_FILE_PATTERN', '**/*.md')
@@ -99,40 +99,60 @@ def pull_model():
         log(f"Failed to pull model: {str(e)}")
         return False
 
+# System prompt matching the fine-tuned model training format
+SYSTEM_PROMPT = """You are an expert Korean to English translator specializing in technical documentation and markdown content.
+
+Your translation guidelines:
+1. Produce natural, fluent English while preserving the original meaning
+2. Keep ALL markdown formatting exactly as-is:
+   - Headers (#, ##, ###)
+   - Bold (**text**) and italic (*text*)
+   - Code blocks (```language ... ```)
+   - Inline code (`code`)
+   - Links [text](url) - translate text, keep url unchanged
+   - Tables (| ... |)
+   - Lists (-, *, 1.)
+3. Do NOT translate:
+   - Code inside code blocks
+   - URLs and file paths
+   - Variable names and function names
+   - Technical terms that are commonly kept in English
+4. Maintain paragraph structure and line breaks"""
+
+USER_TEMPLATE = """Translate the following Korean markdown content to English. Preserve all markdown formatting exactly.
+
+{korean_text}"""
+
+
 def translate_with_ollama(text, retries=0):
-    """Translate text using Ollama API with retry logic"""
+    """Translate text using Ollama Chat API with retry logic"""
     if retries >= MAX_RETRIES:
         print(f"⚠️  Max retries ({MAX_RETRIES}) reached, returning original text", flush=True)
         return text
-    
-    prompt = f"""다음 한국어 텍스트를 영어로 번역해주세요. 마크다운 형식과 구조를 정확히 유지하세요. 번역된 텍스트만 반환하고 추가 설명은 하지 마세요.
 
-한국어 텍스트:
-{text}
+    # Use chat format matching fine-tuned model training
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_TEMPLATE.format(korean_text=text)}
+    ]
 
-영어 번역:"""
-    
     payload = {
         "model": MODEL,
-        "prompt": prompt,
+        "messages": messages,
         "stream": False,
         "options": {
             "temperature": TEMPERATURE,
             "top_p": 0.9
         }
     }
-    
+
     try:
-        response = requests.post(f"{OLLAMA_URL}/api/generate", 
+        response = requests.post(f"{OLLAMA_URL}/api/chat",
                                json=payload, timeout=300)
         response.raise_for_status()
         result = response.json()
-        translated = result.get('response', '').strip()
-        
-        # Clean up response if needed
-        if translated.startswith('영어 번역:'):
-            translated = translated.replace('영어 번역:', '').strip()
-        
+        translated = result.get('message', {}).get('content', '').strip()
+
         return translated
     except Exception as e:
         print(f"⚠️  Translation error (attempt {retries + 1}): {e}", flush=True)

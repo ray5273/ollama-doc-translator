@@ -18,7 +18,35 @@ def check_ollama_server():
     except:
         return False
 
-def check_model_available(model="exaone3.5:7.8b"):
+# Default model - fine-tuned for Korean to English markdown translation
+DEFAULT_MODEL = "ray5273/exaone-3.5-7.8b-KorEng-Translation:q8_0"
+
+# System prompt matching the fine-tuned model training format
+SYSTEM_PROMPT = """You are an expert Korean to English translator specializing in technical documentation and markdown content.
+
+Your translation guidelines:
+1. Produce natural, fluent English while preserving the original meaning
+2. Keep ALL markdown formatting exactly as-is:
+   - Headers (#, ##, ###)
+   - Bold (**text**) and italic (*text*)
+   - Code blocks (```language ... ```)
+   - Inline code (`code`)
+   - Links [text](url) - translate text, keep url unchanged
+   - Tables (| ... |)
+   - Lists (-, *, 1.)
+3. Do NOT translate:
+   - Code inside code blocks
+   - URLs and file paths
+   - Variable names and function names
+   - Technical terms that are commonly kept in English
+4. Maintain paragraph structure and line breaks"""
+
+USER_TEMPLATE = """Translate the following Korean markdown content to English. Preserve all markdown formatting exactly.
+
+{korean_text}"""
+
+
+def check_model_available(model=DEFAULT_MODEL):
     """지정된 모델이 사용 가능한지 확인"""
     try:
         response = requests.get("http://localhost:11434/api/tags", timeout=5)
@@ -30,38 +58,34 @@ def check_model_available(model="exaone3.5:7.8b"):
     except:
         return False
 
-def translate_with_ollama(text, model="exaone3.5:7.8b"):
-    """Ollama API를 사용하여 텍스트를 번역"""
-    url = "http://localhost:11434/api/generate"
-    
-    prompt = f"""다음 한국어 텍스트를 영어로 번역해주세요. 마크다운 형식과 구조를 유지하세요. 번역된 텍스트만 반환하고 추가적인 설명은 하지 마세요.
 
-한국어 텍스트:
-{text}
+def translate_with_ollama(text, model=DEFAULT_MODEL):
+    """Ollama Chat API를 사용하여 텍스트를 번역"""
+    url = "http://localhost:11434/api/chat"
 
-영어 번역:"""
-    
+    # Use chat format matching fine-tuned model training
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_TEMPLATE.format(korean_text=text)}
+    ]
+
     payload = {
         "model": model,
-        "prompt": prompt,
+        "messages": messages,
         "stream": False,
         "options": {
             "temperature": 0.3,
             "top_p": 0.9
         }
     }
-    
+
     try:
         print(f"번역 중... (모델: {model})")
         response = requests.post(url, json=payload, timeout=300)
         response.raise_for_status()
         result = response.json()
-        translated = result.get('response', '').strip()
-        
-        # 가끔 모델이 추가 설명을 포함할 수 있으므로 정리
-        if translated.startswith('영어 번역:'):
-            translated = translated.replace('영어 번역:', '').strip()
-        
+        translated = result.get('message', {}).get('content', '').strip()
+
         return translated
     except Exception as e:
         print(f"번역 오류: {e}")
@@ -108,14 +132,14 @@ def main():
         return
     
     print("✅ Ollama 서버 연결됨")
-    
+
     # 모델 확인
-    model = "exaone3.5:7.8b"
+    model = DEFAULT_MODEL
     if not check_model_available(model):
         print(f"❌ 모델 '{model}'을 찾을 수 없습니다.")
         print(f"다음 명령으로 모델을 다운로드하세요: ollama pull {model}")
         return
-    
+
     print(f"✅ 모델 '{model}' 사용 가능")
     
     docs_dir = Path('docs')
