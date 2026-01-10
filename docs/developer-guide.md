@@ -88,10 +88,128 @@ def translate_with_ollama(text, model="exaone3.5:7.8b"):
 ### 파일 처리 파이프라인
 
 1. **파일 발견**: glob 패턴으로 마크다운 파일 검색
-2. **내용 분할**: 큰 파일을 청크로 분할
+2. **내용 분할**: 스마트 청킹으로 큰 파일을 청크로 분할
 3. **번역 처리**: 각 청크를 순차적으로 번역
-4. **결과 병합**: 번역된 청크들을 다시 합치기
+4. **결과 병합**: 번역된 청크들을 스마트 조인으로 다시 합치기
 5. **파일 저장**: 번역된 내용을 대상 디렉토리에 저장
+
+## 스마트 청킹 시스템
+
+### 청킹 전략 개요
+
+시스템은 대용량 문서를 효율적으로 처리하기 위해 계층적 청킹 전략을 사용합니다:
+
+```python
+def split_markdown_by_sections(content: str, max_tokens: int = None) -> list:
+    """섹션 기반 마크다운 분할 - 의미 단위 보존"""
+    # 1. 헤딩 계층 구조 분석 (H1-H6)
+    # 2. 코드 블록 상태 추적 (``` ~ ``` 보존)
+    # 3. 토큰 제한 내에서 의미 단위 유지
+    # 4. 컨텍스트 정보 보존 (상위 헤딩 경로)
+```
+
+### 핵심 기능
+
+#### 1. 섹션 인식 분할
+- **헤딩 계층**: H1-H2는 항상 분할 경계, H3는 200토큰 이상시 분할
+- **의미 보존**: 작은 섹션도 완전성을 위해 독립적으로 유지
+- **컨텍스트 추적**: 각 청크는 상위 헤딩 경로 정보 보유
+
+#### 2. 코드 블록 보존
+```python
+# 코드 블록 감지 및 보존 로직
+if line_stripped.startswith('```'):
+    if not in_code_block:
+        in_code_block = True
+        code_block_fence = line_stripped[:3]
+    elif line_stripped.startswith(code_block_fence):
+        in_code_block = False
+        
+# 코드 블록 내부에서는 분할하지 않음
+if not in_code_block and should_split_here:
+    # 청크 분할 실행
+```
+
+#### 3. 스마트 조인 (Smart Join)
+번역된 청크들을 다시 합칠 때 불필요한 줄바꿈 방지:
+
+```python
+def smart_join_chunks(chunks: list) -> str:
+    """연속된 번호 목록 사이의 불필요한 줄바꿈 제거"""
+    # 번호 목록 패턴 감지: "- 288. 항목"
+    # 연속 번호시 단일 줄바꿈 사용
+    # 일반 내용은 기본 분리자 사용
+```
+
+### 토큰 계산 시스템
+
+#### 정확한 토큰 계산
+```python
+def count_tokens(text: str) -> int:
+    """언어별 특성 고려한 토큰 계산"""
+    try:
+        # tiktoken 라이브러리 사용 (선호)
+        return len(tiktoken.encoding_for_model("gpt-3.5-turbo").encode(text))
+    except:
+        # 폴백: 언어별 추정
+        korean_chars = len(re.findall(r'[가-힣]', text))
+        code_chars = len(re.findall(r'[`{}()[\];]', text))
+        other_chars = len(text) - korean_chars - code_chars
+        
+        return int(korean_chars * 0.5 + code_chars * 0.8 + other_chars * 0.3)
+```
+
+#### 안전 마진 계산
+```python
+def calculate_safe_input_tokens(context_length: int) -> int:
+    """번역 프롬프트와 출력 버퍼 고려한 안전 토큰 수"""
+    prompt_overhead = 200  # 시스템 프롬프트 + 지시사항
+    output_reserve = int(context_length * 0.4)  # 출력 공간 40%
+    safety_margin = 100    # 추가 안전 마진
+    
+    return context_length - prompt_overhead - output_reserve - safety_margin
+```
+
+## 디버그 시스템
+
+### 자동 디버그 파일 생성
+
+```python
+# 청킹 디버그 파일
+def save_debug_chunks(input_path: str, chunks: list):
+    """청크별 분석 파일 생성"""
+    for i, chunk in enumerate(chunks):
+        # debug_chunks/filename_chunk_001.md
+        metadata = f"""<!-- DEBUG CHUNK {i+1}/{len(chunks)} -->
+<!-- Tokens: {count_tokens(chunk)} -->
+<!-- Characters: {len(chunk)} -->
+<!-- Source: {input_path} -->"""
+```
+
+### 번역 비교 시스템
+
+```python
+def save_debug_translation(input_path: str, chunk_index: int, 
+                         original_chunk: str, translated_chunk: str):
+    """원본-번역 비교 파일 생성"""
+    # debug_originals/filename_original_001.md
+    # debug_translations/filename_translated_001.md  
+    # debug_comparisons/filename_comparison_001.md
+```
+
+### 디버그 모드 활성화
+
+환경 변수로 상세 디버그 정보 출력 제어:
+
+```bash
+# 디버그 모드 활성화
+export INPUT_DEBUG_MODE=true
+
+# 실행시 추가 출력:
+# 📦 Created 15 token-aware chunks
+# 🔄 [1/15] Translating chunk (245 tokens)...
+# 🐛 Saved debug files for chunk 1 (original/translated/comparison)
+```
 
 ## 개발 환경 설정
 
