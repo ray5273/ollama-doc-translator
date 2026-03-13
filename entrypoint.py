@@ -13,6 +13,7 @@ import glob
 from pathlib import Path
 import subprocess
 import re
+from urllib.parse import urlparse
 
 try:
     import tiktoken
@@ -22,6 +23,14 @@ except ImportError:
 
 # Action inputs from environment variables
 OLLAMA_URL = os.getenv('INPUT_OLLAMA_URL', 'http://localhost:11434')
+
+# Bypass proxy for Ollama server (corporate proxies return 403 for localhost)
+_ollama_host = urlparse(OLLAMA_URL).hostname or 'localhost'
+_no_proxy = os.environ.get('NO_PROXY', os.environ.get('no_proxy', ''))
+if _ollama_host not in _no_proxy:
+    _no_proxy_new = f"{_no_proxy},{_ollama_host}" if _no_proxy else _ollama_host
+    os.environ['NO_PROXY'] = _no_proxy_new
+    os.environ['no_proxy'] = _no_proxy_new
 MODEL = os.getenv('INPUT_MODEL', 'exaone3.5:7.8b')
 SOURCE_DIR = os.getenv('INPUT_SOURCE_DIR', 'docs')
 TARGET_DIR = os.getenv('INPUT_TARGET_DIR', 'docs-en')
@@ -73,24 +82,37 @@ def set_output(name, value):
         escaped_value = str(value).replace('\n', '%0A')
         print(f"::set-output name={name}::{escaped_value}")
 
-def check_ollama_server():
-    """Check if Ollama server is running"""
-    try:
-        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=10, verify=SSL_VERIFY)
-        return response.status_code == 200
-    except Exception as e:
-        return False
+def check_ollama_server(retries=5, delay=3):
+    """Check if Ollama server is running with retry logic"""
+    for attempt in range(retries):
+        try:
+            response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=30, verify=SSL_VERIFY)
+            if response.status_code == 200:
+                return True
+            log(f"⚠️ Ollama server returned status {response.status_code} (attempt {attempt + 1}/{retries})")
+        except requests.exceptions.ConnectionError as e:
+            log(f"⚠️ Ollama connection error (attempt {attempt + 1}/{retries}): {e}")
+        except requests.exceptions.Timeout as e:
+            log(f"⚠️ Ollama request timeout (attempt {attempt + 1}/{retries}): {e}")
+        except Exception as e:
+            log(f"⚠️ Ollama check failed (attempt {attempt + 1}/{retries}): {type(e).__name__}: {e}")
+        if attempt < retries - 1:
+            log(f"⏳ Retrying in {delay} seconds...")
+            time.sleep(delay)
+    return False
 
 def check_model_available():
     """Check if the specified model is available"""
     try:
-        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=10, verify=SSL_VERIFY)
+        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=30, verify=SSL_VERIFY)
         if response.status_code == 200:
             models = response.json()
             model_names = [m['name'] for m in models.get('models', [])]
             return MODEL in model_names
+        log(f"⚠️ Model check: server returned status {response.status_code}")
         return False
     except Exception as e:
+        log(f"⚠️ Model check failed: {type(e).__name__}: {e}")
         return False
 
 def pull_model():
