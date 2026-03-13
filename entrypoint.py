@@ -13,6 +13,7 @@ import glob
 from pathlib import Path
 import subprocess
 import re
+from urllib.parse import urlparse
 
 try:
     import tiktoken
@@ -22,6 +23,14 @@ except ImportError:
 
 # Action inputs from environment variables
 OLLAMA_URL = os.getenv('INPUT_OLLAMA_URL', 'http://localhost:11434')
+
+# Bypass proxy for Ollama server (corporate proxies return 403 for localhost)
+_ollama_host = urlparse(OLLAMA_URL).hostname or 'localhost'
+_no_proxy = os.environ.get('NO_PROXY', os.environ.get('no_proxy', ''))
+if _ollama_host not in _no_proxy:
+    _no_proxy_new = f"{_no_proxy},{_ollama_host}" if _no_proxy else _ollama_host
+    os.environ['NO_PROXY'] = _no_proxy_new
+    os.environ['no_proxy'] = _no_proxy_new
 MODEL = os.getenv('INPUT_MODEL', 'exaone3.5:7.8b')
 SOURCE_DIR = os.getenv('INPUT_SOURCE_DIR', 'docs')
 TARGET_DIR = os.getenv('INPUT_TARGET_DIR', 'docs-en')
